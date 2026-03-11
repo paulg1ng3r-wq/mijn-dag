@@ -3,47 +3,53 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Mijn Dag — Takenlijst</title>
+<title>Mijn Dag</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;}
-  input[type="date"]::-webkit-calendar-picker-indicator,
-  input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer;}
-  button{transition:all .15s;cursor:pointer;}
-  button:active{transform:scale(0.96);}
-  ::-webkit-scrollbar{width:4px;}
-  ::-webkit-scrollbar-track{background:transparent;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif;}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(0.4);cursor:pointer;}
+button{transition:all .15s;cursor:pointer;}
+button:active{transform:scale(0.96);}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}
+textarea{resize:vertical;font-family:inherit;}
+@keyframes urgentPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,83,80,0.6)}50%{box-shadow:0 0 0 10px rgba(239,83,80,0)}}
+@keyframes confettiFly{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(-90px) rotate(400deg);opacity:0}}
+.urgent-card{animation:urgentPulse 1.6s ease-in-out infinite;}
+.conf{position:fixed;width:8px;height:8px;border-radius:2px;animation:confettiFly 0.85s ease-out forwards;pointer-events:none;z-index:9999;}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useRef, useMemo, useEffect } = React;
-
-const VERSION = "v1.06";
+const {useState,useRef,useMemo,useEffect} = React;
+const VERSION = "v1.08";
 
 const CHANGELOG = [
-  { version:"v1.06", items:["Kalender: klik op een dag om alle taken van die dag te zien","Kalender: taken van geselecteerde dag bovenaan getoond","Taken filteren op Deze week en Volgende week"] },
-  { version:"v1.05", items:["Sjabloon-snelkiezer bovenin het taakformulier: één klik vult alles in","Sjablonen zichtbaar als gekleurde chips — geen tabblad nodig"] },
-  { version:"v1.03", items:["Onderste navigatiebalk (Taken, Kalender, Sjablonen, Instellingen)","6 thema's: Donker, Licht, Oranje, Mint, Blauw, Roze","Kalenderweergave met gekleurde taak-stippen","Sjablonentabblad: standaard taken met eigen kleur snel toevoegen","Uitvouwbare versiegeschiedenis in Instellingen","Werkt als standalone webapp op GitHub Pages"] },
-  { version:"v1.02", items:["Tijdveld per taak","Apple SF Pro lettertype","Export alle taken als JSON","Import taken vanuit JSON-bestand","Versienummer linksboven"] },
-  { version:"v1.01", items:["Eerste versie van de takenlijst","Taken toevoegen met dag & deadline","Prioriteit (Laag / Normaal / Hoog)","Filteren op Vandaag / Open / Gedaan","Afvinken en verwijderen van taken"] },
+  {version:"v1.08",items:["Kladblok verplaatst naar Verkenner","Verkenner volledig herschreven en gerepareerd","5MB gebruiksmeter bovenaan Verkenner","Alle tabbladen direct zichtbaar (geen Meer-menu)","Tabs scrollbaar als ze niet passen"]},
+  {version:"v1.07",items:["Eindtijd afspraken","Herhaling (dagelijks/wekelijks/maandelijks/jaarlijks)","Synchroniseren via JSONBin","Link bij taken","Personen + koppelen","Help pagina","Urgentie-trigger + confetti","Verkenner met mappen en sjablonen"]},
+  {version:"v1.06",items:["Kalender klikbaar per dag","Filter deze week / volgende week"]},
+  {version:"v1.05",items:["Sjabloon snelkiezer in taakformulier"]},
+  {version:"v1.03",items:["Navigatiebalk, 6 thema's, kalender, sjablonen"]},
+  {version:"v1.02",items:["Tijdveld, Apple font, export/import"]},
+  {version:"v1.01",items:["Eerste versie"]},
 ];
 
 const THEMES = {
-  donker: { name:"🌑 Donker",  bg:"#0f0f14", card:"#1a1a26", border:"#2a2a3a", text:"#f0e6d3", sub:"#7a7a8a", accent:"#c9a96e", navBg:"rgba(13,13,20,0.95)", inputBg:"#0f0f14", muted:"#2e2e3e", badge:"#1e1e2a" },
-  licht:  { name:"☀️ Licht",   bg:"#f5f5f0", card:"#ffffff", border:"#e0e0d8", text:"#1a1a2e", sub:"#8888a0", accent:"#5a5aaa", navBg:"rgba(235,235,228,0.95)", inputBg:"#f9f9f5", muted:"#c8c8d0", badge:"#eeeeea" },
-  oranje: { name:"🔥 Oranje",  bg:"#0f0f14", card:"#1a1a26", border:"#2a2a3a", text:"#f0e6d3", sub:"#7a7a8a", accent:"#ff7a2f", navBg:"rgba(13,13,20,0.95)", inputBg:"#0f0f14", muted:"#2e2e3e", badge:"#1e1e2a" },
-  mint:   { name:"🌿 Mint",    bg:"#f0f7f4", card:"#ffffff", border:"#c8e6d8", text:"#1a2e26", sub:"#70998a", accent:"#2e9e6e", navBg:"rgba(228,240,234,0.95)", inputBg:"#f5fbf8", muted:"#b8d8c8", badge:"#e8f5ee" },
-  blauw:  { name:"🩵 Blauw",  bg:"#e8f2ff", card:"#ffffff", border:"#b8d4f8", text:"#1a2a4a", sub:"#7090b8", accent:"#4a90d9", navBg:"rgba(216,234,255,0.95)", inputBg:"#f0f7ff", muted:"#b0ccea", badge:"#dceeff" },
-  roze:   { name:"🌸 Roze",   bg:"#fff0f5", card:"#ffffff", border:"#f8c8da", text:"#3a1a2a", sub:"#b888a0", accent:"#e05080", navBg:"rgba(255,228,238,0.95)", inputBg:"#fff5f8", muted:"#f0c0d0", badge:"#ffe8f0" },
+  donker:{name:"🌑 Donker", bg:"#0f0f14",card:"#1a1a26",border:"#2a2a3a",text:"#f0e6d3",sub:"#7a7a8a",accent:"#c9a96e",navBg:"rgba(13,13,20,0.97)",inputBg:"#13131c",muted:"#2e2e3e",badge:"#1e1e2a"},
+  licht: {name:"☀️ Licht",  bg:"#f4f4ef",card:"#ffffff",border:"#e0e0d8",text:"#1a1a2e",sub:"#8888a0",accent:"#5a5aaa",navBg:"rgba(234,234,227,0.97)",inputBg:"#f9f9f5",muted:"#c8c8d0",badge:"#eeeee8"},
+  oranje:{name:"🔥 Oranje", bg:"#0f0f14",card:"#1a1a26",border:"#2a2a3a",text:"#f0e6d3",sub:"#7a7a8a",accent:"#ff7a2f",navBg:"rgba(13,13,20,0.97)",inputBg:"#13131c",muted:"#2e2e3e",badge:"#1e1e2a"},
+  mint:  {name:"🌿 Mint",   bg:"#f0f7f4",card:"#ffffff",border:"#c8e6d8",text:"#1a2e26",sub:"#70998a",accent:"#2e9e6e",navBg:"rgba(228,240,234,0.97)",inputBg:"#f4fbf8",muted:"#b8d8c8",badge:"#e8f5ee"},
+  blauw: {name:"🩵 Blauw",  bg:"#e8f2ff",card:"#ffffff",border:"#b8d4f8",text:"#1a2a4a",sub:"#7090b8",accent:"#4a90d9",navBg:"rgba(215,233,255,0.97)",inputBg:"#f0f7ff",muted:"#b0ccea",badge:"#dceeff"},
+  roze:  {name:"🌸 Roze",   bg:"#fff0f5",card:"#ffffff",border:"#f8c8da",text:"#3a1a2a",sub:"#b888a0",accent:"#e05080",navBg:"rgba(255,228,238,0.97)",inputBg:"#fff5f8",muted:"#f0c0d0",badge:"#ffe8f0"},
 };
 
-const PRIORITIES = ["Laag","Normaal","Hoog"];
-const PRIO_COLORS = { Laag:"#66bb6a", Normaal:"#ffca28", Hoog:"#ef5350" };
+const PRIORITIES = ["Laag","Normaal","Hoog","Urgent"];
+const PRIO_COLORS = {Laag:"#66bb6a",Normaal:"#ffca28",Hoog:"#ef5350",Urgent:"#b71c1c"};
+const DAGEN = ["Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag","Zondag"];
 const TODAY = new Date().toISOString().split("T")[0];
 
 const DEFAULT_TEMPLATES = [
@@ -54,485 +60,725 @@ const DEFAULT_TEMPLATES = [
   {id:5,text:"Huis opruimen",      priority:"Laag",   color:"#b888a0",emoji:"🧹"},
 ];
 
-function save(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
-function load(key, def){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):def; }catch(e){ return def; } }
+const FILE_TPLS = [
+  {name:"Kladblok",    icon:"📝", content:""},
+  {name:"Locatie",     icon:"📍", content:"📍 LOCATIE\n\nNaam: \nAdres: \nPostcode: \nStad: \n\nNotities:\n"},
+  {name:"Wachtwoord",  icon:"🔑", content:"🔑 WACHTWOORD\n\nDienst: \nGebruikersnaam: \nWachtwoord: \nWebsite: \n\nNotities:\n"},
+  {name:"Boodschappenlijst",icon:"🛒",content:"🛒 BOODSCHAPPEN\n\nGroenten & Fruit:\n- \n\nZuivel:\n- \n\nVlees:\n- \n\nDroogkost:\n- \n\nDiversen:\n- \n"},
+  {name:"Leeg bestand",icon:"📄",content:""},
+];
+
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function lv(k,d){try{const s=localStorage.getItem(k);return s?JSON.parse(s):d;}catch(e){return d;}}
+
+function useLs(key,def){
+  const [val,setVal]=useState(()=>lv(key,def));
+  const set=v=>{setVal(v);sv(key,v);};
+  return [val,set];
+}
 
 function getDaysLeft(d){
-  const t=new Date(); t.setHours(0,0,0,0);
-  const x=new Date(d+"T00:00:00"); x.setHours(0,0,0,0);
+  const t=new Date();t.setHours(0,0,0,0);
+  const x=new Date(d+"T00:00:00");x.setHours(0,0,0,0);
   return Math.round((x-t)/86400000);
 }
 
-function DeadlineBadge({deadline,time}){
-  if(!deadline) return null;
+function DeadlineBadge({deadline,time,endTime}){
+  if(!deadline)return null;
   const days=getDaysLeft(deadline);
   let bg,color,label;
   if(days<0)      {bg="#fce4ec";color="#c62828";label=`${Math.abs(days)}d te laat`;}
   else if(days===0){bg="#fff3e0";color="#e65100";label="Vandaag!";}
   else if(days===1){bg="#fff8e1";color="#f57f17";label="Morgen";}
   else             {bg="#e8f5e9";color="#2e7d32";label=`${days}d over`;}
-  return <span style={{background:bg,color,borderRadius:20,padding:"2px 9px",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{label}{time?` · ${time}`:""}</span>;
+  const ts=time&&endTime?`${time}–${endTime}`:time||"";
+  return <span style={{background:bg,color,borderRadius:20,padding:"2px 9px",fontSize:10,fontWeight:600,whiteSpace:"nowrap"}}>{label}{ts?` · ${ts}`:""}</span>;
 }
 
+function confetti(x,y){
+  ["#ff7a2f","#c9a96e","#66bb6a","#4a90d9","#e05080","#ffca28"].forEach((c,i)=>{
+    setTimeout(()=>{
+      const el=document.createElement("div");
+      el.className="conf";
+      el.style.cssText=`left:${x+Math.random()*80-40}px;top:${y-10}px;background:${c};animation-duration:${0.6+Math.random()*0.4}s;`;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),1000);
+    },i*30);
+  });
+}
+
+/* ─── Storage size helper ─── */
+function getStorageUsed(){
+  let total=0;
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      total+=(localStorage.getItem(k)||"").length*2;
+    }
+  }catch(e){}
+  return total;
+}
+
+const EMPTY_FORM={text:"",deadline:TODAY,time:"",endTime:"",priority:"Normaal",day:TODAY,color:"",recur:{type:"geen",weekdag:1,maanddag:1,jaarDatum:""},link:"",personIds:[]};
+
 function App(){
-  const [tasks,     setTasksRaw]     = useState(()=>load("tasks",[
-    {id:1,text:"Boodschappen doen",   deadline:TODAY,time:"12:00",priority:"Normaal",done:false,day:TODAY,color:"#2e9e6e"},
-    {id:2,text:"Project rapport",     deadline:new Date(Date.now()+2*86400000).toISOString().split("T")[0],time:"17:00",priority:"Hoog",done:false,day:TODAY,color:null},
-  ]));
-  const [templates, setTemplatesRaw] = useState(()=>load("templates", DEFAULT_TEMPLATES));
-  const [themeKey,  setThemeKeyRaw]  = useState(()=>load("theme","donker"));
-  const [tab,       setTab]          = useState("taken");
-  const [filter,    setFilter]       = useState("Alles");
-  const [showForm,  setShowForm]     = useState(false);
-  const [editId,    setEditId]       = useState(null);
-  const [form,      setForm]         = useState({text:"",deadline:TODAY,time:"",priority:"Normaal",day:TODAY,color:""});
-  const [toast,     setToast]        = useState(null);
-  const [calMonth,  setCalMonth]     = useState(new Date());
-  const [showLog,   setShowLog]      = useState(false);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [editTpl,   setEditTpl]      = useState(null);
-  const [tplForm,   setTplForm]      = useState({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});
-  const [showTplForm,setShowTplForm] = useState(false);
-  const importRef = useRef();
+  const [tasks,    setTasks]    = useLs("tasks",[
+    {id:1,text:"Boodschappen doen",deadline:TODAY,time:"10:00",endTime:"11:00",priority:"Normaal",done:false,day:TODAY,color:"#2e9e6e",recur:{type:"wekelijks",weekdag:2},link:"",personIds:[]},
+    {id:2,text:"Project rapport",deadline:new Date(Date.now()+2*86400000).toISOString().split("T")[0],time:"17:00",endTime:"",priority:"Hoog",done:false,day:TODAY,color:null,recur:{type:"geen"},link:"",personIds:[]},
+  ]);
+  const [templates,setTemplates]= useLs("templates",DEFAULT_TEMPLATES);
+  const [themeKey, setThemeKey] = useLs("theme","donker");
+  const [persons,  setPersons]  = useLs("persons",[]);
+  const [files,    setFilesRaw] = useLs("vfiles",[]);
+  const [folders,  setFolders]  = useLs("vfolders",[]);
 
-  function setTasks(v)     { setTasksRaw(v);     save("tasks",v); }
-  function setTemplates(v) { setTemplatesRaw(v); save("templates",v); }
-  function setThemeKey(v)  { setThemeKeyRaw(v);  save("theme",v); }
+  const [tab,      setTab]      = useState("taken");
+  const [filter,   setFilter]   = useState("Alles");
+  const [showForm, setShowForm] = useState(false);
+  const [editId,   setEditId]   = useState(null);
+  const [form,     setForm]     = useState(EMPTY_FORM);
+  const [toast,    setToast]    = useState(null);
+  const [calMonth, setCalMonth] = useState(new Date());
+  const [selDay,   setSelDay]   = useState(null);
+  const [showLog,  setShowLog]  = useState(false);
+  const [editTpl,  setEditTpl]  = useState(null);
+  const [tplForm,  setTplForm]  = useState({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});
+  const [showTplF, setShowTplF] = useState(false);
+  const [editPer,  setEditPer]  = useState(null);
+  const [perForm,  setPerForm]  = useState({name:"",phone:"",email:"",place:"",emoji:"👤"});
+  const [showPerF, setShowPerF] = useState(false);
+  // Verkenner state
+  const [vFolder,  setVFolder]  = useState(null);   // current folder id (null=root)
+  const [vFile,    setVFile]    = useState(null);    // open file id
+  const [renaming, setRenaming] = useState(null);    // {id, type:"file"|"folder", val}
+  const [syncCode, setSyncCodeR]= useState(()=>lv("syncCode",""));
+  const [syncSt,   setSyncSt]   = useState("");
+  const importRef=useRef();
 
-  const th = THEMES[themeKey];
+  const th=THEMES[themeKey];
+  const darkAccent=(themeKey==="donker"||themeKey==="oranje")?"#0f0f14":"#fff";
 
-  function showToast(m){ setToast(m); setTimeout(()=>setToast(null),2500); }
+  function saveSyncCode(v){setSyncCodeR(v);sv("syncCode",v);}
+  function showToast(m){setToast(m);setTimeout(()=>setToast(null),2500);}
 
-  const filtered = tasks.filter(t=>{
-    if(filter==="Vandaag")       return t.day===TODAY;
-    if(filter==="Gedaan")        return t.done;
-    if(filter==="Open")          return !t.done;
-    if(filter==="Deze week")     return inWeek(t.day,0)||inWeek(t.deadline,0);
-    if(filter==="Volgende week") return inWeek(t.day,1)||inWeek(t.deadline,1);
+  /* ─── File helpers ─── */
+  function setFiles(v){setFilesRaw(v);sv("vfiles",v);}
+  function updateFile(id,patch){setFiles(files.map(f=>f.id===id?{...f,...patch}:f));}
+
+  /* ─── Storage meter ─── */
+  const storageBytes=useMemo(()=>getStorageUsed(),[files,folders,tasks,persons]);
+  const storageMax=5*1024*1024;
+  const storagePct=Math.min(100,(storageBytes/storageMax)*100);
+  const storageColor=storagePct>80?"#ef5350":storagePct>60?"#ffca28":"#66bb6a";
+
+  /* ─── Week helpers ─── */
+  function getWeekRange(off=0){
+    const n=new Date();n.setHours(0,0,0,0);
+    const day=n.getDay(),mon=day===0?-6:1-day;
+    const s=new Date(n);s.setDate(n.getDate()+mon+off*7);
+    const e=new Date(s);e.setDate(s.getDate()+6);
+    return{s,e};
+  }
+  function inWeek(ds,off){
+    if(!ds)return false;
+    const{s,e}=getWeekRange(off);
+    const d=new Date(ds+"T00:00:00");
+    return d>=s&&d<=e;
+  }
+
+  const filtered=tasks.filter(t=>{
+    if(filter==="Vandaag")      return t.day===TODAY;
+    if(filter==="Gedaan")       return t.done;
+    if(filter==="Open")         return !t.done;
+    if(filter==="Deze week")    return inWeek(t.day,0)||inWeek(t.deadline,0);
+    if(filter==="Volgende week")return inWeek(t.day,1)||inWeek(t.deadline,1);
     return true;
   }).sort((a,b)=>{
-    if(a.done!==b.done) return a.done?1:-1;
+    if(a.done!==b.done)return a.done?1:-1;
     return PRIORITIES.indexOf(b.priority)-PRIORITIES.indexOf(a.priority);
   });
 
   function addOrEdit(){
-    if(!form.text.trim()) return;
-    if(editId!==null){ setTasks(tasks.map(t=>t.id===editId?{...t,...form}:t)); setEditId(null); }
+    if(!form.text.trim())return;
+    if(editId!==null){setTasks(tasks.map(t=>t.id===editId?{...t,...form}:t));setEditId(null);}
     else setTasks([...tasks,{...form,id:Date.now(),done:false}]);
-    setForm({text:"",deadline:TODAY,time:"",priority:"Normaal",day:TODAY,color:""});
-    setShowForm(false);
+    setForm(EMPTY_FORM);setShowForm(false);
   }
-  function startEdit(task){ setForm({text:task.text,deadline:task.deadline,time:task.time||"",priority:task.priority,day:task.day,color:task.color||""}); setEditId(task.id); setShowForm(true); }
-  function toggle(id){ setTasks(tasks.map(t=>t.id===id?{...t,done:!t.done}:t)); }
-  function remove(id){ setTasks(tasks.filter(t=>t.id!==id)); }
-  function addFromTemplate(tpl){ setTasks([...tasks,{id:Date.now(),text:tpl.text,deadline:TODAY,time:"",priority:tpl.priority,done:false,day:TODAY,color:tpl.color}]); showToast(`✅ "${tpl.text}" toegevoegd!`); }
+  function startEdit(task){
+    setForm({text:task.text,deadline:task.deadline||TODAY,time:task.time||"",endTime:task.endTime||"",priority:task.priority,day:task.day||TODAY,color:task.color||"",recur:task.recur||{type:"geen"},link:task.link||"",personIds:task.personIds||[]});
+    setEditId(task.id);setShowForm(true);
+  }
+  function toggle(id,ev){
+    const task=tasks.find(t=>t.id===id);
+    const nowDone=!task.done;
+    setTasks(tasks.map(t=>t.id===id?{...t,done:nowDone}:t));
+    if(nowDone){
+      const r=ev?.currentTarget?.getBoundingClientRect?.();
+      if(r)confetti(r.x+r.width/2,r.y);
+      showToast("🎉 Klaar!");
+    }
+  }
 
-  function exportTasks(){
-    const blob=new Blob([JSON.stringify({version:VERSION,exported:new Date().toISOString(),tasks},null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`taken-${TODAY}.json`; a.click(); URL.revokeObjectURL(url);
+  function exportAll(){
+    const blob=new Blob([JSON.stringify({version:VERSION,exported:new Date().toISOString(),tasks,persons,files,folders,templates},null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=`mijndag-${TODAY}.json`;a.click();URL.revokeObjectURL(url);
     showToast("✅ Geëxporteerd!");
   }
-  function importTasks(e){
-    const file=e.target.files[0]; if(!file) return;
+  function importAll(e){
+    const file=e.target.files[0];if(!file)return;
     const r=new FileReader();
-    r.onload=ev=>{ try{ const d=JSON.parse(ev.target.result); const imp=Array.isArray(d)?d:(d.tasks||[]); if(!imp.length) throw 0; setTasks(imp); showToast(`✅ ${imp.length} taken geladen!`); }catch{ showToast("❌ Ongeldig bestand"); } };
-    r.readAsText(file); e.target.value="";
+    r.onload=ev=>{try{
+      const d=JSON.parse(ev.target.result);
+      if(d.tasks)setTasks(d.tasks);
+      if(d.persons)setPersons(d.persons);
+      if(d.files)setFiles(d.files);
+      if(d.folders)setFolders(d.folders);
+      if(d.templates)setTemplates(d.templates);
+      showToast("✅ Geladen!");
+    }catch{showToast("❌ Ongeldig bestand");}};
+    r.readAsText(file);e.target.value="";
   }
 
-  const calDays = useMemo(()=>{
-    const y=calMonth.getFullYear(), m=calMonth.getMonth();
+  async function syncUp(){
+    if(!syncCode){showToast("❌ Voer een Bin ID in");return;}
+    setSyncSt("Uploaden…");
+    try{
+      const res=await fetch(`https://api.jsonbin.io/v3/b/${syncCode}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({tasks,persons,files,folders,templates})});
+      setSyncSt(res.ok?"✅ Geüpload!":"❌ Mislukt");
+    }catch{setSyncSt("❌ Geen verbinding");}
+    setTimeout(()=>setSyncSt(""),3000);
+  }
+  async function syncDown(){
+    if(!syncCode){showToast("❌ Voer een Bin ID in");return;}
+    setSyncSt("Downloaden…");
+    try{
+      const res=await fetch(`https://api.jsonbin.io/v3/b/${syncCode}/latest`);
+      const j=await res.json();const d=j.record;
+      if(d.tasks)setTasks(d.tasks);if(d.persons)setPersons(d.persons);
+      if(d.files)setFiles(d.files);if(d.folders)setFolders(d.folders);
+      if(d.templates)setTemplates(d.templates);
+      setSyncSt("✅ Gedownload!");
+    }catch{setSyncSt("❌ Geen verbinding");}
+    setTimeout(()=>setSyncSt(""),3000);
+  }
+
+  /* ─── Calendar ─── */
+  const calDays=useMemo(()=>{
+    const y=calMonth.getFullYear(),m=calMonth.getMonth();
     const first=new Date(y,m,1).getDay();
-    const daysInMonth=new Date(y,m+1,0).getDate();
-    const startOffset=(first+6)%7;
+    const dim=new Date(y,m+1,0).getDate();
+    const off=(first+6)%7;
     const cells=[];
-    for(let i=0;i<startOffset;i++) cells.push(null);
-    for(let d=1;d<=daysInMonth;d++) cells.push(d);
-    return {cells,y,m};
+    for(let i=0;i<off;i++)cells.push(null);
+    for(let d=1;d<=dim;d++)cells.push(d);
+    return{cells,y,m};
   },[calMonth]);
 
-  function tasksForDay(d){
-    if(!d) return [];
-    const {y,m}=calDays;
-    const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-    return tasks.filter(t=>t.day===ds||t.deadline===ds);
+  function dayStr(d){const{y,m}=calDays;return`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;}
+  function tasksForDay(d){if(!d)return[];const ds=dayStr(d);return tasks.filter(t=>t.day===ds||t.deadline===ds);}
+
+  function recurLabel(r){
+    if(!r||r.type==="geen")return null;
+    if(r.type==="dagelijks")return"🔁 Dagelijks";
+    if(r.type==="wekelijks")return`🔁 Elke ${DAGEN[(r.weekdag||1)-1]}`;
+    if(r.type==="tweewekelijks")return"🔁 Om de week";
+    if(r.type==="maandelijks")return`🔁 ${r.maanddag||1}e vd maand`;
+    if(r.type==="jaarlijks")return"🔁 Jaarlijks";
+    return null;
   }
 
-  function getWeekRange(offset=0){
-    const now=new Date(); now.setHours(0,0,0,0);
-    const day=now.getDay(); const mon=day===0?-6:1-day;
-    const start=new Date(now); start.setDate(now.getDate()+mon+offset*7);
-    const end=new Date(start); end.setDate(start.getDate()+6);
-    return {start,end};
-  }
-  function inWeek(dateStr,offset){
-    if(!dateStr) return false;
-    const {start,end}=getWeekRange(offset);
-    const d=new Date(dateStr+"T00:00:00");
-    return d>=start&&d<=end;
+  const inp={background:th.inputBg,border:`1px solid ${th.border}`,borderRadius:8,padding:"10px 14px",color:th.text,fontSize:14,fontFamily:"inherit",outline:"none",width:"100%"};
+
+  const TABS=[
+    {key:"taken",   icon:"✅",label:"Taken"},
+    {key:"kalender",icon:"📅",label:"Kalender"},
+    {key:"personen",icon:"👥",label:"Personen"},
+    {key:"verkenner",icon:"📁",label:"Verkenner"},
+    {key:"sjablonen",icon:"⚡",label:"Sjablonen"},
+    {key:"instellingen",icon:"⚙️",label:"Instellingen"},
+    {key:"help",    icon:"❓",label:"Help"},
+  ];
+
+  /* ─── Task Card ─── */
+  function TaskCard({task,compact=false}){
+    const dot=task.color||PRIO_COLORS[task.priority];
+    const rl=recurLabel(task.recur);
+    const isUrgent=task.priority==="Urgent"&&!task.done;
+    const tPersons=(task.personIds||[]).map(pid=>persons.find(p=>p.id===pid)).filter(Boolean);
+    return(
+      <div className={isUrgent?"urgent-card":""} style={{background:task.done?th.badge:th.card,border:`1px solid ${th.border}`,borderLeft:`3px solid ${task.done?th.border:dot}`,borderRadius:10,padding:compact?"9px 12px":"12px 14px",display:"flex",alignItems:"flex-start",gap:10,opacity:task.done?0.5:1,marginBottom:7}}>
+        <button onClick={ev=>toggle(task.id,ev)} style={{width:21,height:21,borderRadius:"50%",flexShrink:0,marginTop:1,border:`2px solid ${task.done?dot:th.border}`,background:task.done?dot:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {task.done&&<span style={{color:"#fff",fontSize:9,fontWeight:900}}>✓</span>}
+        </button>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:task.done?th.sub:th.text,fontSize:compact?13:15,fontWeight:500,textDecoration:task.done?"line-through":"none",marginBottom:3,wordBreak:"break-word"}}>{task.text}</div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{background:dot+"22",color:dot,border:`1px solid ${dot}44`,borderRadius:20,padding:"1px 7px",fontSize:9,fontWeight:600}}>{task.priority}</span>
+            <DeadlineBadge deadline={task.deadline} time={task.time} endTime={task.endTime}/>
+            {rl&&<span style={{background:th.accent+"18",color:th.accent,borderRadius:20,padding:"1px 7px",fontSize:9,fontWeight:600}}>{rl}</span>}
+            {task.link&&<a href={task.link.startsWith("http")?task.link:"https://"+task.link} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{color:th.accent,fontSize:9,textDecoration:"none",background:th.badge,borderRadius:20,padding:"1px 7px"}}>🔗 Link</a>}
+            {tPersons.map(p=><span key={p.id} style={{background:th.badge,color:th.sub,borderRadius:20,padding:"1px 6px",fontSize:9}}>{p.emoji} {p.name}</span>)}
+          </div>
+        </div>
+        {!compact&&<div style={{display:"flex",gap:2,flexShrink:0}}>
+          <button onClick={()=>startEdit(task)} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
+          <button onClick={()=>setTasks(tasks.filter(t=>t.id!==task.id))} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>🗑️</button>
+        </div>}
+      </div>
+    );
   }
 
-  const inp={background:th.inputBg,border:`1px solid ${th.border}`,borderRadius:8,padding:"10px 14px",color:th.text,fontSize:14,fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box"};
-  const navItems=[{key:"taken",icon:"✅",label:"Taken"},{key:"kalender",icon:"📅",label:"Kalender"},{key:"sjablonen",icon:"⚡",label:"Sjablonen"},{key:"instellingen",icon:"⚙️",label:"Instellingen"}];
-  const darkAccent = (themeKey==="donker"||themeKey==="oranje") ? "#0f0f14" : "#fff";
+  /* ─── Task Form ─── */
+  function TaskForm(){
+    const r=form.recur||{type:"geen"};
+    return(
+      <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:16,display:"flex",flexDirection:"column",gap:11,marginTop:6}}>
+        <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editId!==null?"Bewerken":"Nieuwe taak"}</div>
+        {editId===null&&templates.length>0&&<div>
+          <div style={{color:th.sub,fontSize:9,marginBottom:5,letterSpacing:1}}>⚡ SJABLOON</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {templates.map(tpl=><button key={tpl.id} onClick={()=>setForm({...form,text:tpl.text,priority:tpl.priority,color:tpl.color})} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 9px",borderRadius:20,border:`1.5px solid ${form.text===tpl.text?tpl.color:th.border}`,background:form.text===tpl.text?tpl.color+"22":th.badge,color:form.text===tpl.text?tpl.color:th.sub,fontSize:11,fontFamily:"inherit"}}>{tpl.emoji} {tpl.text}</button>)}
+          </div>
+        </div>}
+        <input value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Omschrijving…" onKeyDown={e=>e.key==="Enter"&&addOrEdit()} style={inp}/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div><div style={{color:th.sub,fontSize:9,marginBottom:3,letterSpacing:1}}>DAG</div><input type="date" value={form.day} onChange={e=>setForm({...form,day:e.target.value})} style={inp}/></div>
+          <div><div style={{color:th.sub,fontSize:9,marginBottom:3,letterSpacing:1}}>DEADLINE</div><input type="date" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})} style={inp}/></div>
+          <div><div style={{color:th.sub,fontSize:9,marginBottom:3,letterSpacing:1}}>BEGINTIJD</div><input type="time" value={form.time} onChange={e=>setForm({...form,time:e.target.value})} style={inp}/></div>
+          <div><div style={{color:th.sub,fontSize:9,marginBottom:3,letterSpacing:1}}>EINDTIJD</div><input type="time" value={form.endTime} onChange={e=>setForm({...form,endTime:e.target.value})} style={inp}/></div>
+        </div>
+        <div><div style={{color:th.sub,fontSize:9,marginBottom:3,letterSpacing:1}}>🔗 LINK</div><input value={form.link} onChange={e=>setForm({...form,link:e.target.value})} placeholder="https://…" style={inp}/></div>
+        <div>
+          <div style={{color:th.sub,fontSize:9,marginBottom:5,letterSpacing:1}}>PRIORITEIT</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {PRIORITIES.map(p=>{const c=PRIO_COLORS[p];return<button key={p} onClick={()=>setForm({...form,priority:p})} style={{flex:1,minWidth:56,padding:"7px 0",borderRadius:8,border:`1px solid ${form.priority===p?c:th.border}`,background:form.priority===p?c+"22":"transparent",color:form.priority===p?c:th.sub,fontFamily:"inherit",fontSize:11,fontWeight:form.priority===p?700:400}}>{p}</button>;})}
+          </div>
+        </div>
+        <div>
+          <div style={{color:th.sub,fontSize:9,marginBottom:4,letterSpacing:1}}>KLEUR</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+            <button onClick={()=>setForm({...form,color:""})} style={{width:22,height:22,borderRadius:"50%",background:th.border,border:!form.color?`2px solid ${th.text}`:"2px solid transparent",fontSize:10,color:th.sub}}>✕</button>
+            {["#ef5350","#ffca28","#66bb6a","#4a90d9","#e05080","#9c7bd4","#ff7a2f","#2e9e6e"].map(c=><button key={c} onClick={()=>setForm({...form,color:c})} style={{width:22,height:22,borderRadius:"50%",background:c,border:form.color===c?`2px solid ${th.text}`:"2px solid transparent"}}/>)}
+          </div>
+        </div>
+        {persons.length>0&&<div>
+          <div style={{color:th.sub,fontSize:9,marginBottom:4,letterSpacing:1}}>👥 MET WIE</div>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            {persons.map(p=>{const sel=(form.personIds||[]).includes(p.id);return<button key={p.id} onClick={()=>setForm({...form,personIds:sel?(form.personIds||[]).filter(i=>i!==p.id):[...(form.personIds||[]),p.id]})} style={{padding:"4px 9px",borderRadius:20,border:`1.5px solid ${sel?th.accent:th.border}`,background:sel?th.accent+"22":th.badge,color:sel?th.accent:th.sub,fontSize:11,fontFamily:"inherit"}}>{p.emoji} {p.name}</button>;})}
+          </div>
+        </div>}
+        <div>
+          <div style={{color:th.sub,fontSize:9,marginBottom:5,letterSpacing:1}}>🔁 HERHALING</div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:7}}>
+            {[["geen","Geen"],["dagelijks","Dagelijks"],["wekelijks","Wekelijks"],["tweewekelijks","Om de week"],["maandelijks","Maandelijks"],["jaarlijks","Jaarlijks"]].map(([v,l])=>
+              <button key={v} onClick={()=>setForm({...form,recur:{...r,type:v}})} style={{padding:"4px 9px",borderRadius:20,border:`1px solid ${r.type===v?th.accent:th.border}`,background:r.type===v?th.accent+"22":"transparent",color:r.type===v?th.accent:th.sub,fontSize:11,fontFamily:"inherit",fontWeight:r.type===v?700:400}}>{l}</button>
+            )}
+          </div>
+          {(r.type==="wekelijks"||r.type==="tweewekelijks")&&<div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+            {DAGEN.map((d,i)=><button key={i} onClick={()=>setForm({...form,recur:{...r,weekdag:i+1}})} style={{padding:"4px 8px",borderRadius:7,border:`1px solid ${r.weekdag===i+1?th.accent:th.border}`,background:r.weekdag===i+1?th.accent+"22":"transparent",color:r.weekdag===i+1?th.accent:th.sub,fontSize:11,fontFamily:"inherit"}}>{d.slice(0,2)}</button>)}
+          </div>}
+          {r.type==="maandelijks"&&<div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+            {Array.from({length:31},(_,i)=>i+1).map(d=><button key={d} onClick={()=>setForm({...form,recur:{...r,maanddag:d}})} style={{width:28,height:28,borderRadius:7,border:`1px solid ${r.maanddag===d?th.accent:th.border}`,background:r.maanddag===d?th.accent+"22":"transparent",color:r.maanddag===d?th.accent:th.sub,fontSize:11,fontFamily:"inherit"}}>{d}</button>)}
+          </div>}
+          {r.type==="jaarlijks"&&<input type="date" value={r.jaarDatum||""} onChange={e=>setForm({...form,recur:{...r,jaarDatum:e.target.value}})} style={inp}/>}
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={addOrEdit} style={{flex:1,padding:11,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:700,fontSize:14,fontFamily:"inherit"}}>{editId!==null?"Opslaan":"Toevoegen"}</button>
+          <button onClick={()=>{setShowForm(false);setEditId(null);}} style={{padding:"11px 13px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:14,fontFamily:"inherit"}}>Annuleer</button>
+        </div>
+      </div>
+    );
+  }
 
-  return (
+  function PageHeader({label,title}){
+    return(
+      <div style={{marginBottom:18}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:5}}>
+          <span style={{color:th.accent,fontSize:10,letterSpacing:4,textTransform:"uppercase"}}>{label}</span>
+          <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
+        </div>
+        <h1 style={{color:th.text,fontSize:28,fontWeight:600,letterSpacing:-0.5}}>{title}</h1>
+        <div style={{height:1,background:`linear-gradient(90deg,${th.accent}55,transparent)`,marginTop:10}}/>
+      </div>
+    );
+  }
+
+  /* ─── Verkenner helpers ─── */
+  function currentFolderFiles(){return files.filter(f=>(f.folderId||null)===(vFolder||null));}
+  function currentSubFolders(){return folders.filter(fo=>(fo.parentId||null)===(vFolder||null));}
+  function breadcrumb(){
+    const crumbs=[];
+    let cur=vFolder;
+    while(cur){
+      const fo=folders.find(f=>f.id===cur);
+      if(!fo)break;
+      crumbs.unshift(fo);
+      cur=fo.parentId||null;
+    }
+    return crumbs;
+  }
+  function newFile(name,content="",fid=null){
+    const id=Date.now();
+    setFiles([...files,{id,name:name||"Nieuw bestand",content:content||"",folderId:fid||vFolder||null}]);
+    return id;
+  }
+  function newFolder(name){
+    setFolders([...folders,{id:Date.now(),name:name||"Nieuwe map",parentId:vFolder||null}]);
+  }
+  function deleteFolder(id){
+    // delete all files in folder and sub-folders recursively
+    const toDelete=new Set([id]);
+    let changed=true;
+    while(changed){changed=false;folders.forEach(f=>{if(f.parentId&&toDelete.has(f.parentId)&&!toDelete.has(f.id)){toDelete.add(f.id);changed=true;}});}
+    setFiles(files.filter(f=>!toDelete.has(f.folderId)));
+    setFolders(folders.filter(f=>!toDelete.has(f.id)));
+  }
+
+  /* ────────────────────────────────── RENDER ────────────────────────────── */
+  return(
     <div style={{minHeight:"100vh",background:th.bg,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center"}}>
       <style>{`::-webkit-scrollbar-thumb{background:${th.border};border-radius:4px;}`}</style>
+      {toast&&<div style={{position:"fixed",top:18,left:"50%",transform:"translateX(-50%)",background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:"9px 18px",color:th.text,fontSize:13,zIndex:9998,boxShadow:"0 8px 32px #0007",whiteSpace:"nowrap"}}>{toast}</div>}
 
-      {toast&&<div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:"10px 20px",color:th.text,fontSize:13,zIndex:999,boxShadow:"0 8px 32px #0006",whiteSpace:"nowrap"}}>{toast}</div>}
+      <div style={{width:"100%",maxWidth:560,flex:1,padding:"26px 13px 100px"}}>
 
-      <div style={{width:"100%",maxWidth:560,flex:1,padding:"32px 16px 100px",boxSizing:"border-box"}}>
-
-        {/* ── TAKEN ── */}
+        {/* ══════════════ TAKEN ══════════════ */}
         {tab==="taken"&&<>
-          <div style={{marginBottom:24}}>
+          <div style={{marginBottom:18}}>
             <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
               <div>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                  <span style={{color:th.accent,fontSize:11,letterSpacing:4,textTransform:"uppercase"}}>Takenlijst</span>
-                  <span style={{color:th.muted,fontSize:10,userSelect:"none"}}>{VERSION}</span>
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:4}}>
+                  <span style={{color:th.accent,fontSize:10,letterSpacing:4,textTransform:"uppercase"}}>Takenlijst</span>
+                  <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
                 </div>
-                <h1 style={{color:th.text,fontSize:34,fontWeight:600,letterSpacing:-1}}>Mijn Dag</h1>
+                <h1 style={{color:th.text,fontSize:32,fontWeight:600,letterSpacing:-1}}>Mijn Dag</h1>
               </div>
               <div style={{textAlign:"right"}}>
-                <div style={{color:th.accent,fontSize:26,fontWeight:700}}>{tasks.filter(t=>!t.done).length}</div>
-                <div style={{color:th.sub,fontSize:10,letterSpacing:2}}>OPEN</div>
+                <div style={{color:th.accent,fontSize:24,fontWeight:700}}>{tasks.filter(t=>!t.done).length}</div>
+                <div style={{color:th.sub,fontSize:9,letterSpacing:2}}>OPEN</div>
               </div>
             </div>
-            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}44,transparent)`,marginTop:16}}/>
+            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}55,transparent)`,marginTop:12}}/>
           </div>
-
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,gap:8,flexWrap:"wrap"}}>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["Alles","Vandaag","Deze week","Volgende week","Open","Gedaan"].map(f=>(
-                <button key={f} onClick={()=>setFilter(f)} style={{padding:"5px 13px",borderRadius:20,border:"none",background:filter===f?th.accent:th.badge,color:filter===f?darkAccent:th.sub,fontWeight:filter===f?700:400,fontSize:11}}>{f}</button>
-              ))}
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={exportTasks} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.accent,fontSize:11}}>↑ Export</button>
-              <button onClick={()=>importRef.current.click()} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.sub,fontSize:11}}>↓ Import</button>
-              <input ref={importRef} type="file" accept=".json" onChange={importTasks} style={{display:"none"}}/>
-            </div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12,alignItems:"center"}}>
+            {["Alles","Vandaag","Deze week","Volgende week","Open","Gedaan"].map(f=>
+              <button key={f} onClick={()=>setFilter(f)} style={{padding:"5px 10px",borderRadius:20,border:"none",background:filter===f?th.accent:th.badge,color:filter===f?darkAccent:th.sub,fontWeight:filter===f?700:400,fontSize:10}}>{f}</button>
+            )}
+            <button onClick={exportAll} style={{marginLeft:"auto",padding:"5px 9px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.accent,fontSize:10}}>↑ Export</button>
+            <button onClick={()=>importRef.current.click()} style={{padding:"5px 9px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.sub,fontSize:10}}>↓ Import</button>
+            <input ref={importRef} type="file" accept=".json" onChange={importAll} style={{display:"none"}}/>
           </div>
-
-          <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:20}}>
-            {filtered.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"36px 0",fontSize:14}}>Geen taken gevonden</div>}
-            {filtered.map(task=>{
-              const dot=task.color||PRIO_COLORS[task.priority];
-              return(
-                <div key={task.id} style={{background:task.done?th.badge:th.card,border:`1px solid ${th.border}`,borderLeft:`3px solid ${task.done?th.border:dot}`,borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:12,opacity:task.done?0.5:1}}>
-                  <button onClick={()=>toggle(task.id)} style={{width:22,height:22,borderRadius:"50%",flexShrink:0,marginTop:1,border:`2px solid ${task.done?dot:th.border}`,background:task.done?dot:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    {task.done&&<span style={{color:"#fff",fontSize:10,fontWeight:900}}>✓</span>}
-                  </button>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{color:task.done?th.sub:th.text,fontSize:15,fontWeight:500,textDecoration:task.done?"line-through":"none",marginBottom:5,wordBreak:"break-word"}}>{task.text}</div>
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-                      <span style={{background:dot+"22",color:dot,border:`1px solid ${dot}44`,borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:600}}>{task.priority}</span>
-                      <DeadlineBadge deadline={task.deadline} time={task.time}/>
-                      {task.day&&<span style={{color:th.sub,fontSize:10}}>📅 {new Date(task.day+"T00:00:00").toLocaleDateString("nl-NL",{day:"numeric",month:"short"})}</span>}
-                    </div>
-                  </div>
-                  <div style={{display:"flex",gap:3,flexShrink:0}}>
-                    <button onClick={()=>startEdit(task)} style={{background:"none",border:"none",color:th.sub,fontSize:14,padding:4}}>✏️</button>
-                    <button onClick={()=>remove(task.id)} style={{background:"none",border:"none",color:th.sub,fontSize:14,padding:4}}>🗑️</button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {!showForm&&<button onClick={()=>{setShowForm(true);setEditId(null);setForm({text:"",deadline:TODAY,time:"",priority:"Normaal",day:TODAY,color:""}); }} style={{width:"100%",padding:13,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:14,fontFamily:"inherit"}}>+ Nieuwe taak toevoegen</button>}
-
-          {showForm&&(
-            <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:13}}>
-              <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editId!==null?"Bewerken":"Nieuwe taak"}</div>
-
-              {/* Sjabloon snelkiezer */}
-              {editId===null&&templates.length>0&&(
-                <div>
-                  <div style={{color:th.sub,fontSize:10,marginBottom:7,letterSpacing:1}}>⚡ SJABLOON KIEZEN</div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                    {templates.map(tpl=>(
-                      <button key={tpl.id} onClick={()=>setForm({...form,text:tpl.text,priority:tpl.priority,color:tpl.color})}
-                        style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:20,
-                          border:`1.5px solid ${form.text===tpl.text&&form.color===tpl.color?tpl.color:th.border}`,
-                          background:form.text===tpl.text&&form.color===tpl.color?tpl.color+"22":th.badge,
-                          color:form.text===tpl.text&&form.color===tpl.color?tpl.color:th.sub,
-                          fontSize:12,fontFamily:"inherit",fontWeight:form.text===tpl.text?600:400,
-                          whiteSpace:"nowrap"}}>
-                        <span>{tpl.emoji}</span>
-                        <span>{tpl.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <input value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Of typ zelf een taak…" onKeyDown={e=>e.key==="Enter"&&addOrEdit()} style={inp}/>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
-                <div><div style={{color:th.sub,fontSize:10,marginBottom:4,letterSpacing:1}}>DAG</div><input type="date" value={form.day} onChange={e=>setForm({...form,day:e.target.value})} style={inp}/></div>
-                <div><div style={{color:th.sub,fontSize:10,marginBottom:4,letterSpacing:1}}>DEADLINE</div><input type="date" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})} style={inp}/></div>
-                <div><div style={{color:th.sub,fontSize:10,marginBottom:4,letterSpacing:1}}>TIJD</div><input type="time" value={form.time} onChange={e=>setForm({...form,time:e.target.value})} style={inp}/></div>
-              </div>
-              <div>
-                <div style={{color:th.sub,fontSize:10,marginBottom:6,letterSpacing:1}}>PRIORITEIT</div>
-                <div style={{display:"flex",gap:7}}>
-                  {PRIORITIES.map(p=>{const c=PRIO_COLORS[p];return(
-                    <button key={p} onClick={()=>setForm({...form,priority:p})} style={{flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${form.priority===p?c:th.border}`,background:form.priority===p?c+"22":"transparent",color:form.priority===p?c:th.sub,fontFamily:"inherit",fontSize:12,fontWeight:form.priority===p?700:400}}>{p}</button>
-                  );})}
-                </div>
-              </div>
-              <div>
-                <div style={{color:th.sub,fontSize:10,marginBottom:6,letterSpacing:1}}>TAAKKLEUR (optioneel)</div>
-                <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-                  <button onClick={()=>setForm({...form,color:""})} style={{width:26,height:26,borderRadius:"50%",background:th.border,border:!form.color?`2px solid ${th.text}`:"2px solid transparent",fontSize:11,color:th.sub}}>✕</button>
-                  {["#ef5350","#ffca28","#66bb6a","#4a90d9","#e05080","#9c7bd4","#ff7a2f","#2e9e6e"].map(c=>(
-                    <button key={c} onClick={()=>setForm({...form,color:c})} style={{width:26,height:26,borderRadius:"50%",background:c,border:form.color===c?`2px solid ${th.text}`:"2px solid transparent"}}/>
-                  ))}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:9}}>
-                <button onClick={addOrEdit} style={{flex:1,padding:11,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:700,fontSize:14,fontFamily:"inherit"}}>{editId!==null?"Opslaan":"Toevoegen"}</button>
-                <button onClick={()=>{setShowForm(false);setEditId(null);}} style={{padding:"11px 16px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:14,fontFamily:"inherit"}}>Annuleer</button>
-              </div>
-            </div>
-          )}
-
-          <div style={{marginTop:24,display:"flex",justifyContent:"center",gap:20}}>
+          {filtered.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"30px 0",fontSize:13}}>Geen taken gevonden</div>}
+          {filtered.map(task=><TaskCard key={task.id} task={task}/>)}
+          {!showForm&&<button onClick={()=>{setShowForm(true);setEditId(null);setForm(EMPTY_FORM);}} style={{width:"100%",padding:12,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:13,fontFamily:"inherit",marginTop:2}}>+ Nieuwe taak</button>}
+          {showForm&&<TaskForm/>}
+          <div style={{marginTop:20,display:"flex",justifyContent:"center",gap:16}}>
             {[["OPEN",tasks.filter(t=>!t.done).length,th.accent],["GEDAAN",tasks.filter(t=>t.done).length,"#66bb6a"],["TOTAAL",tasks.length,th.text]].map(([l,v,c],i,a)=>(
-              <div key={l} style={{display:"flex",alignItems:"center",gap:20}}>
-                <div style={{textAlign:"center"}}><div style={{color:c,fontSize:20,fontWeight:700}}>{v}</div><div style={{color:th.muted,fontSize:9,letterSpacing:2}}>{l}</div></div>
-                {i<a.length-1&&<div style={{width:1,height:24,background:th.border}}/>}
+              <div key={l} style={{display:"flex",alignItems:"center",gap:16}}>
+                <div style={{textAlign:"center"}}><div style={{color:c,fontSize:18,fontWeight:700}}>{v}</div><div style={{color:th.muted,fontSize:8,letterSpacing:2}}>{l}</div></div>
+                {i<a.length-1&&<div style={{width:1,height:20,background:th.border}}/>}
               </div>
             ))}
           </div>
         </>}
 
-        {/* ── KALENDER ── */}
+        {/* ══════════════ KALENDER ══════════════ */}
         {tab==="kalender"&&<>
-          <div style={{marginBottom:16}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-              <span style={{color:th.accent,fontSize:11,letterSpacing:4,textTransform:"uppercase"}}>Kalender</span>
-              <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
-            </div>
-            <h1 style={{color:th.text,fontSize:30,fontWeight:600,letterSpacing:-1}}>Overzicht</h1>
-            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}44,transparent)`,marginTop:14}}/>
-          </div>
-
-          {/* Geselecteerde dag taken paneel */}
-          {selectedDay&&(()=>{
-            const selTasks=tasksForDay(selectedDay.d);
-            const selDate=new Date(`${selectedDay.y}-${String(selectedDay.m+1).padStart(2,"0")}-${String(selectedDay.d).padStart(2,"0")}T00:00:00`);
-            const selLabel=selDate.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"});
+          <PageHeader label="Kalender" title="Overzicht"/>
+          {selDay&&(()=>{
+            const sd=selDay;
+            const ds=`${sd.y}-${String(sd.m+1).padStart(2,"0")}-${String(sd.d).padStart(2,"0")}`;
+            const selTasks=tasks.filter(t=>t.day===ds||t.deadline===ds);
+            const selDate=new Date(ds+"T00:00:00");
             return(
-              <div style={{background:th.card,border:`2px solid ${th.accent}`,borderRadius:14,padding:16,marginBottom:16}}>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                  <div>
-                    <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>📅 Geselecteerde dag</div>
-                    <div style={{color:th.text,fontSize:15,fontWeight:600,textTransform:"capitalize"}}>{selLabel}</div>
-                  </div>
-                  <button onClick={()=>setSelectedDay(null)} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,padding:"4px 10px",fontSize:12,fontFamily:"inherit"}}>✕ Sluiten</button>
+              <div style={{background:th.card,border:`2px solid ${th.accent}`,borderRadius:13,padding:13,marginBottom:13}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                  <div style={{color:th.text,fontSize:14,fontWeight:600,textTransform:"capitalize"}}>{selDate.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}</div>
+                  <button onClick={()=>setSelDay(null)} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"3px 8px",fontSize:11,fontFamily:"inherit"}}>✕</button>
                 </div>
-                {selTasks.length===0?(
-                  <div style={{color:th.muted,fontSize:13,textAlign:"center",padding:"12px 0"}}>Geen taken op deze dag</div>
-                ):(
-                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
-                    {selTasks.map(task=>{
-                      const dot=task.color||PRIO_COLORS[task.priority];
-                      return(
-                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:task.done?th.badge:th.inputBg,borderRadius:8,border:`1px solid ${th.border}`,borderLeft:`3px solid ${task.done?th.border:dot}`,opacity:task.done?0.6:1}}>
-                          <button onClick={()=>toggle(task.id)} style={{width:18,height:18,borderRadius:"50%",flexShrink:0,border:`2px solid ${task.done?dot:th.border}`,background:task.done?dot:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                            {task.done&&<span style={{color:"#fff",fontSize:9,fontWeight:900}}>✓</span>}
-                          </button>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{color:task.done?th.sub:th.text,fontSize:13,fontWeight:500,textDecoration:task.done?"line-through":"none",wordBreak:"break-word"}}>{task.text}</div>
-                            {task.time&&<div style={{color:th.sub,fontSize:11}}>🕐 {task.time}</div>}
-                          </div>
-                          <span style={{background:dot+"22",color:dot,borderRadius:20,padding:"1px 7px",fontSize:10,fontWeight:600,flexShrink:0}}>{task.priority}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                {selTasks.length===0?<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"6px 0"}}>Geen taken</div>
+                  :selTasks.map(t=><TaskCard key={t.id} task={t} compact/>)}
               </div>
             );
           })()}
-
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,padding:"6px 16px",fontSize:18,fontFamily:"inherit"}}>‹</button>
-            <div style={{color:th.text,fontWeight:600,fontSize:16}}>{calMonth.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</div>
-            <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,padding:"6px 16px",fontSize:18,fontFamily:"inherit"}}>›</button>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:7,color:th.text,padding:"5px 13px",fontSize:17,fontFamily:"inherit"}}>‹</button>
+            <div style={{color:th.text,fontWeight:600,fontSize:14}}>{calMonth.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</div>
+            <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:7,color:th.text,padding:"5px 13px",fontSize:17,fontFamily:"inherit"}}>›</button>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:4}}>
-            {["Ma","Di","Wo","Do","Vr","Za","Zo"].map(d=><div key={d} style={{textAlign:"center",color:th.sub,fontSize:11,fontWeight:600,padding:"4px 0"}}>{d}</div>)}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>
+            {["Ma","Di","Wo","Do","Vr","Za","Zo"].map(d=><div key={d} style={{textAlign:"center",color:th.sub,fontSize:10,fontWeight:600,padding:"2px 0"}}>{d}</div>)}
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
             {calDays.cells.map((d,i)=>{
-              const dayTasks=tasksForDay(d);
-              const ds=d?`${calDays.y}-${String(calDays.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`:null;
+              const dt=tasksForDay(d);
+              const ds=d?dayStr(d):null;
               const isToday=ds===TODAY;
-              const isSelected=selectedDay&&selectedDay.d===d&&selectedDay.m===calDays.m&&selectedDay.y===calDays.y;
+              const isSel=selDay&&selDay.d===d&&selDay.m===calDays.m&&selDay.y===calDays.y;
               return(
-                <div key={i} onClick={()=>d&&setSelectedDay(isSelected?null:{d,m:calDays.m,y:calDays.y})}
-                  style={{minHeight:54,background:isSelected?th.accent+"33":isToday?th.accent+"18":d?th.card:"transparent",
-                    border:d?`1.5px solid ${isSelected?th.accent:isToday?th.accent+"88":th.border}`:"none",
-                    borderRadius:8,padding:"5px 4px",cursor:d?"pointer":"default",transition:"all .12s"}}>
+                <div key={i} onClick={()=>d&&setSelDay(isSel?null:{d,m:calDays.m,y:calDays.y})}
+                  style={{minHeight:46,background:isSel?th.accent+"33":isToday?th.accent+"18":d?th.card:"transparent",border:d?`1.5px solid ${isSel?th.accent:isToday?th.accent+"88":th.border}`:"none",borderRadius:7,padding:"3px 2px",cursor:d?"pointer":"default"}}>
                   {d&&<>
-                    <div style={{color:isSelected?th.accent:isToday?th.accent:th.sub,fontSize:11,fontWeight:isToday||isSelected?700:400,textAlign:"center",marginBottom:3}}>{d}</div>
+                    <div style={{color:isSel?th.accent:isToday?th.accent:th.sub,fontSize:10,fontWeight:isToday||isSel?700:400,textAlign:"center",marginBottom:2}}>{d}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:2,justifyContent:"center"}}>
-                      {dayTasks.slice(0,4).map((t,j)=><div key={j} style={{width:7,height:7,borderRadius:"50%",background:t.color||PRIO_COLORS[t.priority],opacity:t.done?0.4:1}} title={t.text}/>)}
-                      {dayTasks.length>4&&<div style={{fontSize:8,color:th.sub}}>+{dayTasks.length-4}</div>}
+                      {dt.slice(0,4).map((t,j)=><div key={j} style={{width:5,height:5,borderRadius:"50%",background:t.color||PRIO_COLORS[t.priority],opacity:t.done?0.4:1}}/>)}
+                      {dt.length>4&&<div style={{fontSize:7,color:th.sub}}>+{dt.length-4}</div>}
                     </div>
                   </>}
                 </div>
               );
             })}
           </div>
-          <div style={{marginTop:14,display:"flex",gap:12,flexWrap:"wrap"}}>
-            {Object.entries(PRIO_COLORS).map(([p,c])=>(
-              <div key={p} style={{display:"flex",alignItems:"center",gap:5}}>
-                <div style={{width:8,height:8,borderRadius:"50%",background:c}}/>
-                <span style={{color:th.sub,fontSize:11}}>{p}</span>
-              </div>
-            ))}
-            <div style={{display:"flex",alignItems:"center",gap:5}}>
-              <span style={{color:th.muted,fontSize:11}}>Klik op een dag om taken te zien</span>
-            </div>
-          </div>
+          <div style={{marginTop:10,color:th.muted,fontSize:10}}>Tik op een dag om taken te zien</div>
         </>}
 
-        {/* ── SJABLONEN ── */}
-        {tab==="sjablonen"&&<>
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-              <span style={{color:th.accent,fontSize:11,letterSpacing:4,textTransform:"uppercase"}}>Sjablonen</span>
-              <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
-            </div>
-            <h1 style={{color:th.text,fontSize:30,fontWeight:600,letterSpacing:-1}}>Standaard taken</h1>
-            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}44,transparent)`,marginTop:14}}/>
-          </div>
-          <div style={{color:th.sub,fontSize:12,marginBottom:16}}>Klik op een sjabloon om het direct toe te voegen voor vandaag.</div>
-          <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:20}}>
-            {templates.map(tpl=>(
-              <div key={tpl.id} style={{background:th.card,border:`1px solid ${th.border}`,borderLeft:`3px solid ${tpl.color}`,borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
-                <div style={{fontSize:20,flexShrink:0}}>{tpl.emoji}</div>
-                <div style={{flex:1}}>
-                  <div style={{color:th.text,fontSize:15,fontWeight:500}}>{tpl.text}</div>
-                  <span style={{background:tpl.color+"22",color:tpl.color,border:`1px solid ${tpl.color}44`,borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:600}}>{tpl.priority}</span>
+        {/* ══════════════ PERSONEN ══════════════ */}
+        {tab==="personen"&&<>
+          <PageHeader label="Personen" title="Contacten"/>
+          {persons.length===0&&!showPerF&&<div style={{color:th.muted,textAlign:"center",padding:"28px 0",fontSize:13}}>Nog geen personen opgeslagen</div>}
+          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14}}>
+            {persons.map(p=>(
+              <div key={p.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:"11px 13px",display:"flex",alignItems:"center",gap:11}}>
+                <div style={{fontSize:22,flexShrink:0}}>{p.emoji}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{color:th.text,fontSize:14,fontWeight:600}}>{p.name}</div>
+                  {p.phone&&<div style={{color:th.sub,fontSize:11}}>📞 {p.phone}</div>}
+                  {p.email&&<div style={{color:th.sub,fontSize:11}}>✉️ {p.email}</div>}
+                  {p.place&&<div style={{color:th.sub,fontSize:11}}>📍 {p.place}</div>}
                 </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  <button onClick={()=>addFromTemplate(tpl)} style={{background:tpl.color,border:"none",borderRadius:8,color:"#fff",padding:"6px 12px",fontSize:12,fontFamily:"inherit",fontWeight:600}}>+ Voeg toe</button>
-                  <button onClick={()=>{setEditTpl(tpl.id);setTplForm({text:tpl.text,priority:tpl.priority,color:tpl.color,emoji:tpl.emoji});setShowTplForm(true);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,padding:"6px 10px",fontSize:12,fontFamily:"inherit"}}>✏️</button>
-                  <button onClick={()=>setTemplates(templates.filter(t=>t.id!==tpl.id))} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,padding:"6px 10px",fontSize:12,fontFamily:"inherit"}}>🗑️</button>
+                <div style={{display:"flex",gap:3}}>
+                  <button onClick={()=>{setEditPer(p.id);setPerForm({name:p.name,phone:p.phone||"",email:p.email||"",place:p.place||"",emoji:p.emoji});setShowPerF(true);}} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
+                  <button onClick={()=>setPersons(persons.filter(x=>x.id!==p.id))} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>🗑️</button>
                 </div>
               </div>
             ))}
           </div>
-          {!showTplForm&&<button onClick={()=>{setShowTplForm(true);setEditTpl(null);setTplForm({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});}} style={{width:"100%",padding:13,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:14,fontFamily:"inherit"}}>+ Nieuw sjabloon</button>}
-          {showTplForm&&(
-            <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:12}}>
-              <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editTpl?"Bewerken":"Nieuw sjabloon"}</div>
-              <div style={{display:"flex",gap:9}}>
-                <input value={tplForm.emoji} onChange={e=>setTplForm({...tplForm,emoji:e.target.value})} style={{...inp,width:60,textAlign:"center",fontSize:20}} maxLength={2}/>
-                <input value={tplForm.text} onChange={e=>setTplForm({...tplForm,text:e.target.value})} placeholder="Naam van het sjabloon" style={{...inp,flex:1}}/>
-              </div>
-              <div>
-                <div style={{color:th.sub,fontSize:10,marginBottom:6,letterSpacing:1}}>PRIORITEIT</div>
-                <div style={{display:"flex",gap:7}}>
-                  {PRIORITIES.map(p=>{const c=PRIO_COLORS[p];return(
-                    <button key={p} onClick={()=>setTplForm({...tplForm,priority:p})} style={{flex:1,padding:"7px 0",borderRadius:8,border:`1px solid ${tplForm.priority===p?c:th.border}`,background:tplForm.priority===p?c+"22":"transparent",color:tplForm.priority===p?c:th.sub,fontFamily:"inherit",fontSize:12,fontWeight:tplForm.priority===p?700:400}}>{p}</button>
-                  );})}
-                </div>
-              </div>
-              <div>
-                <div style={{color:th.sub,fontSize:10,marginBottom:6,letterSpacing:1}}>KLEUR</div>
-                <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                  {["#ef5350","#ffca28","#66bb6a","#4a90d9","#e05080","#9c7bd4","#ff7a2f","#2e9e6e"].map(c=>(
-                    <button key={c} onClick={()=>setTplForm({...tplForm,color:c})} style={{width:28,height:28,borderRadius:"50%",background:c,border:tplForm.color===c?`3px solid ${th.text}`:"3px solid transparent"}}/>
-                  ))}
-                </div>
-              </div>
-              <div style={{display:"flex",gap:9}}>
-                <button onClick={()=>{
-                  if(!tplForm.text.trim()) return;
-                  if(editTpl!==null) setTemplates(templates.map(t=>t.id===editTpl?{...t,...tplForm}:t));
-                  else setTemplates([...templates,{id:Date.now(),...tplForm}]);
-                  setShowTplForm(false); setEditTpl(null);
-                }} style={{flex:1,padding:11,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:700,fontSize:14,fontFamily:"inherit"}}>{editTpl?"Opslaan":"Toevoegen"}</button>
-                <button onClick={()=>{setShowTplForm(false);setEditTpl(null);}} style={{padding:"11px 16px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:14,fontFamily:"inherit"}}>Annuleer</button>
+          {!showPerF&&<button onClick={()=>{setShowPerF(true);setEditPer(null);setPerForm({name:"",phone:"",email:"",place:"",emoji:"👤"});}} style={{width:"100%",padding:12,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:13,fontFamily:"inherit"}}>+ Persoon toevoegen</button>}
+          {showPerF&&(
+            <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:13,padding:15,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editPer?"Bewerken":"Nieuwe persoon"}</div>
+              <div style={{display:"flex",gap:8}}><input value={perForm.emoji} onChange={e=>setPerForm({...perForm,emoji:e.target.value})} style={{...inp,width:52,textAlign:"center",fontSize:20}} maxLength={2}/><input value={perForm.name} onChange={e=>setPerForm({...perForm,name:e.target.value})} placeholder="Naam" style={{...inp,flex:1}}/></div>
+              <input value={perForm.phone} onChange={e=>setPerForm({...perForm,phone:e.target.value})} placeholder="📞 Telefoonnummer" style={inp}/>
+              <input value={perForm.email} onChange={e=>setPerForm({...perForm,email:e.target.value})} placeholder="✉️ E-mailadres" style={inp}/>
+              <input value={perForm.place} onChange={e=>setPerForm({...perForm,place:e.target.value})} placeholder="📍 Woonplaats" style={inp}/>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{if(!perForm.name.trim())return;if(editPer!==null)setPersons(persons.map(p=>p.id===editPer?{...p,...perForm}:p));else setPersons([...persons,{id:Date.now(),...perForm}]);setShowPerF(false);setEditPer(null);}} style={{flex:1,padding:10,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:700,fontSize:13,fontFamily:"inherit"}}>{editPer?"Opslaan":"Toevoegen"}</button>
+                <button onClick={()=>{setShowPerF(false);setEditPer(null);}} style={{padding:"10px 13px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:13,fontFamily:"inherit"}}>Annuleer</button>
               </div>
             </div>
           )}
         </>}
 
-        {/* ── INSTELLINGEN ── */}
-        {tab==="instellingen"&&<>
-          <div style={{marginBottom:20}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-              <span style={{color:th.accent,fontSize:11,letterSpacing:4,textTransform:"uppercase"}}>Instellingen</span>
-              <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
+        {/* ══════════════ VERKENNER ══════════════ */}
+        {tab==="verkenner"&&<>
+          <PageHeader label="Verkenner" title="Bestanden"/>
+
+          {/* Storage meter */}
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{color:th.sub,fontSize:11}}>💾 Opslag</span>
+              <span style={{color:storageColor,fontSize:11,fontWeight:600}}>{(storageBytes/1024).toFixed(1)} KB / 5 MB ({storagePct.toFixed(1)}%)</span>
             </div>
-            <h1 style={{color:th.text,fontSize:30,fontWeight:600,letterSpacing:-1}}>Instellingen</h1>
-            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}44,transparent)`,marginTop:14}}/>
+            <div style={{height:6,background:th.muted,borderRadius:3,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${storagePct}%`,background:storageColor,borderRadius:3,transition:"width .4s"}}/>
+            </div>
           </div>
 
-          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:16,marginBottom:14}}>
-            <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🎨 Thema</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {/* File open view */}
+          {vFile!==null?(()=>{
+            const f=files.find(x=>x.id===vFile);
+            if(!f)return<div style={{color:th.muted}}>Bestand niet gevonden</div>;
+            return(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>{setVFile(null);setRenaming(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.accent,padding:"5px 11px",fontSize:12,fontFamily:"inherit"}}>← Terug</button>
+                  {renaming&&renaming.id===vFile?(
+                    <>
+                      <input id="rnInput" defaultValue={f.name} style={{...inp,flex:1,padding:"5px 10px",fontSize:13}}/>
+                      <button onClick={()=>{const v=document.getElementById("rnInput").value.trim();if(v)updateFile(vFile,{name:v});setRenaming(null);}} style={{padding:"5px 11px",background:th.accent,border:"none",borderRadius:7,color:darkAccent,fontFamily:"inherit",fontSize:12}}>OK</button>
+                    </>
+                  ):(
+                    <>
+                      <div style={{color:th.text,fontSize:14,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                      <button onClick={()=>setRenaming({id:vFile,type:"file"})} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
+                    </>
+                  )}
+                  <button onClick={()=>{const blob=new Blob([f.content],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=f.name+(f.name.includes(".")?"":" .txt");a.click();URL.revokeObjectURL(url);}} style={{background:"none",border:"none",color:th.accent,fontSize:13,padding:3,flexShrink:0}}>↓</button>
+                </div>
+                <textarea value={f.content} onChange={e=>updateFile(vFile,{content:e.target.value})} style={{...inp,minHeight:380,padding:14,fontSize:13,lineHeight:1.75,borderRadius:11}} placeholder="Begin met typen…"/>
+                <div style={{color:th.muted,fontSize:10,textAlign:"right"}}>{f.content.length} tekens · auto opgeslagen</div>
+              </div>
+            );
+          })():(
+            /* Folder view */
+            <div>
+              {/* Breadcrumb */}
+              <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:12,flexWrap:"wrap"}}>
+                <button onClick={()=>setVFolder(null)} style={{background:"none",border:"none",color:vFolder===null?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:vFolder===null?700:400,padding:0}}>📁 Root</button>
+                {breadcrumb().map((fo,i)=>(
+                  <React.Fragment key={fo.id}>
+                    <span style={{color:th.muted,fontSize:12}}>›</span>
+                    <button onClick={()=>setVFolder(fo.id)} style={{background:"none",border:"none",color:i===breadcrumb().length-1?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:i===breadcrumb().length-1?700:400,padding:0}}>{fo.name}</button>
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* Sub-folders */}
+              {currentSubFolders().map(fo=>(
+                <div key={fo.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"pointer"}} onClick={()=>setVFolder(fo.id)}>
+                  <span style={{fontSize:20}}>📁</span>
+                  <div style={{flex:1,color:th.text,fontSize:13,fontWeight:500}}>{fo.name}</div>
+                  <span style={{color:th.sub,fontSize:10}}>{files.filter(f=>f.folderId===fo.id).length} best.</span>
+                  <button onClick={e=>{e.stopPropagation();if(window.confirm(`Map "${fo.name}" verwijderen?`))deleteFolder(fo.id);}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
+                </div>
+              ))}
+
+              {/* Files */}
+              {currentFolderFiles().map(f=>(
+                <div key={f.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"pointer"}} onClick={()=>{setVFile(f.id);setRenaming(null);}}>
+                  <span style={{fontSize:18}}>📄</span>
+                  <div style={{flex:1,color:th.text,fontSize:13}}>{f.name}</div>
+                  <span style={{color:th.sub,fontSize:10}}>{f.content.length} tekens</span>
+                  <button onClick={e=>{e.stopPropagation();if(window.confirm(`"${f.name}" verwijderen?`))setFiles(files.filter(x=>x.id!==f.id));}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
+                </div>
+              ))}
+
+              {currentSubFolders().length===0&&currentFolderFiles().length===0&&(
+                <div style={{color:th.muted,textAlign:"center",padding:"24px 0",fontSize:13}}>Nog leeg</div>
+              )}
+
+              {/* Action buttons */}
+              <div style={{display:"flex",gap:7,marginTop:10}}>
+                <button onClick={()=>{const n=window.prompt("Naam van de map:");if(n?.trim())newFolder(n.trim());}} style={{flex:1,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📁 Nieuwe map</button>
+                <button onClick={()=>{const n=window.prompt("Naam van het bestand:");if(n?.trim()){const id=newFile(n.trim());setVFile(id);}}} style={{flex:1,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📄 Nieuw bestand</button>
+              </div>
+
+              {/* File templates */}
+              <div style={{marginTop:8,display:"flex",gap:6,flexWrap:"wrap"}}>
+                {FILE_TPLS.map((tpl,i)=>(
+                  <button key={i} onClick={()=>{const n=window.prompt("Naam:",tpl.name);if(n?.trim()){const id=newFile(n.trim(),tpl.content);setVFile(id);}}} style={{padding:"6px 11px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontFamily:"inherit",fontSize:11}}>
+                    {tpl.icon} {tpl.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>}
+
+        {/* ══════════════ SJABLONEN ══════════════ */}
+        {tab==="sjablonen"&&<>
+          <PageHeader label="Sjablonen" title="Standaard taken"/>
+          <div style={{color:th.sub,fontSize:12,marginBottom:12}}>Klik op een sjabloon om het direct toe te voegen voor vandaag.</div>
+          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14}}>
+            {templates.map(tpl=>(
+              <div key={tpl.id} style={{background:th.card,border:`1px solid ${th.border}`,borderLeft:`3px solid ${tpl.color}`,borderRadius:10,padding:"10px 13px",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{fontSize:19,flexShrink:0}}>{tpl.emoji}</div>
+                <div style={{flex:1}}><div style={{color:th.text,fontSize:13,fontWeight:500}}>{tpl.text}</div><span style={{background:tpl.color+"22",color:tpl.color,borderRadius:20,padding:"1px 7px",fontSize:9,fontWeight:600}}>{tpl.priority}</span></div>
+                <button onClick={()=>setTasks([...tasks,{...EMPTY_FORM,id:Date.now(),text:tpl.text,priority:tpl.priority,color:tpl.color,done:false}])} style={{background:tpl.color,border:"none",borderRadius:7,color:"#fff",padding:"5px 9px",fontSize:11,fontFamily:"inherit",fontWeight:600}}>+ Voeg toe</button>
+                <button onClick={()=>{setEditTpl(tpl.id);setTplForm({text:tpl.text,priority:tpl.priority,color:tpl.color,emoji:tpl.emoji});setShowTplF(true);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"5px 7px",fontSize:11,fontFamily:"inherit"}}>✏️</button>
+                <button onClick={()=>setTemplates(templates.filter(t=>t.id!==tpl.id))} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"5px 7px",fontSize:11,fontFamily:"inherit"}}>🗑️</button>
+              </div>
+            ))}
+          </div>
+          {!showTplF&&<button onClick={()=>{setShowTplF(true);setEditTpl(null);setTplForm({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});}} style={{width:"100%",padding:12,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:13,fontFamily:"inherit"}}>+ Nieuw sjabloon</button>}
+          {showTplF&&(
+            <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:13,padding:15,display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editTpl?"Bewerken":"Nieuw sjabloon"}</div>
+              <div style={{display:"flex",gap:8}}><input value={tplForm.emoji} onChange={e=>setTplForm({...tplForm,emoji:e.target.value})} style={{...inp,width:52,textAlign:"center",fontSize:20}} maxLength={2}/><input value={tplForm.text} onChange={e=>setTplForm({...tplForm,text:e.target.value})} placeholder="Naam" style={{...inp,flex:1}}/></div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{PRIORITIES.map(p=>{const c=PRIO_COLORS[p];return<button key={p} onClick={()=>setTplForm({...tplForm,priority:p})} style={{flex:1,minWidth:50,padding:"6px 0",borderRadius:8,border:`1px solid ${tplForm.priority===p?c:th.border}`,background:tplForm.priority===p?c+"22":"transparent",color:tplForm.priority===p?c:th.sub,fontFamily:"inherit",fontSize:10,fontWeight:tplForm.priority===p?700:400}}>{p}</button>;})}
+              </div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{["#ef5350","#ffca28","#66bb6a","#4a90d9","#e05080","#9c7bd4","#ff7a2f","#2e9e6e"].map(c=><button key={c} onClick={()=>setTplForm({...tplForm,color:c})} style={{width:24,height:24,borderRadius:"50%",background:c,border:tplForm.color===c?`3px solid ${th.text}`:"3px solid transparent"}}/>)}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{if(!tplForm.text.trim())return;if(editTpl!==null)setTemplates(templates.map(t=>t.id===editTpl?{...t,...tplForm}:t));else setTemplates([...templates,{id:Date.now(),...tplForm}]);setShowTplF(false);setEditTpl(null);}} style={{flex:1,padding:10,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:700,fontSize:13,fontFamily:"inherit"}}>{editTpl?"Opslaan":"Toevoegen"}</button>
+                <button onClick={()=>{setShowTplF(false);setEditTpl(null);}} style={{padding:"10px 13px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:13,fontFamily:"inherit"}}>Annuleer</button>
+              </div>
+            </div>
+          )}
+        </>}
+
+        {/* ══════════════ INSTELLINGEN ══════════════ */}
+        {tab==="instellingen"&&<>
+          <PageHeader label="Instellingen" title="Instellingen"/>
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
+            <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>🎨 Thema</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
               {Object.entries(THEMES).map(([key,t])=>(
-                <button key={key} onClick={()=>setThemeKey(key)} style={{padding:"10px 14px",borderRadius:10,border:`2px solid ${themeKey===key?th.accent:th.border}`,background:t.bg,color:t.text,fontFamily:"inherit",fontSize:13,fontWeight:themeKey===key?700:400,display:"flex",alignItems:"center",gap:8,textAlign:"left"}}>
-                  <div style={{width:14,height:14,borderRadius:"50%",background:t.accent,flexShrink:0}}/>
-                  {t.name}
+                <button key={key} onClick={()=>setThemeKey(key)} style={{padding:"8px 11px",borderRadius:9,border:`2px solid ${themeKey===key?th.accent:th.border}`,background:t.bg,color:t.text,fontFamily:"inherit",fontSize:11,fontWeight:themeKey===key?700:400,display:"flex",alignItems:"center",gap:7}}>
+                  <div style={{width:11,height:11,borderRadius:"50%",background:t.accent,flexShrink:0}}/>{t.name}
                 </button>
               ))}
             </div>
           </div>
-
-          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:16,marginBottom:14}}>
-            <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>💾 Data</div>
-            <div style={{display:"flex",gap:9}}>
-              <button onClick={exportTasks} style={{flex:1,padding:11,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:600,fontSize:13,fontFamily:"inherit"}}>↑ Exporteer taken</button>
-              <button onClick={()=>importRef.current.click()} style={{flex:1,padding:11,background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:13,fontFamily:"inherit"}}>↓ Importeer taken</button>
-              <input ref={importRef} type="file" accept=".json" onChange={importTasks} style={{display:"none"}}/>
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
+            <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>☁️ Synchroniseren</div>
+            <div style={{color:th.sub,fontSize:11,marginBottom:8,lineHeight:1.6}}>Maak een gratis account op <b>jsonbin.io</b>, maak een Bin aan en plak het Bin ID hieronder.</div>
+            <input value={syncCode} onChange={e=>saveSyncCode(e.target.value)} placeholder="JSONBin Bin ID…" style={{...inp,marginBottom:8}}/>
+            <div style={{display:"flex",gap:7}}>
+              <button onClick={syncUp} style={{flex:1,padding:9,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:600,fontSize:12,fontFamily:"inherit"}}>↑ Upload</button>
+              <button onClick={syncDown} style={{flex:1,padding:9,background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:12,fontFamily:"inherit"}}>↓ Download</button>
             </div>
-            <div style={{marginTop:10,color:th.muted,fontSize:11,lineHeight:1.6}}>☁️ Je taken worden automatisch lokaal opgeslagen in je browser. Exporteer als JSON voor backup of om op een ander apparaat te laden.</div>
+            {syncSt&&<div style={{marginTop:7,color:th.sub,fontSize:11,textAlign:"center"}}>{syncSt}</div>}
           </div>
-
-          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:16}}>
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
+            <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>💾 Data</div>
+            <div style={{display:"flex",gap:7}}>
+              <button onClick={exportAll} style={{flex:1,padding:9,background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontWeight:600,fontSize:12,fontFamily:"inherit"}}>↑ Exporteer alles</button>
+              <button onClick={()=>importRef.current.click()} style={{flex:1,padding:9,background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontSize:12,fontFamily:"inherit"}}>↓ Importeer</button>
+              <input ref={importRef} type="file" accept=".json" onChange={importAll} style={{display:"none"}}/>
+            </div>
+          </div>
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13}}>
             <button onClick={()=>setShowLog(!showLog)} style={{width:"100%",background:"none",border:"none",display:"flex",alignItems:"center",justifyContent:"space-between",padding:0,fontFamily:"inherit",cursor:"pointer"}}>
-              <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>📋 Versiegeschiedenis</div>
-              <div style={{color:th.sub,fontSize:16,transform:showLog?"rotate(180deg)":"none",transition:"transform .2s"}}>▾</div>
+              <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase"}}>📋 Versiegeschiedenis</div>
+              <div style={{color:th.sub,fontSize:14,transform:showLog?"rotate(180deg)":"none",transition:"transform .2s"}}>▾</div>
             </button>
-            {showLog&&(
-              <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:14}}>
-                {CHANGELOG.map(entry=>(
-                  <div key={entry.version}>
-                    <div style={{color:th.accent,fontSize:12,fontWeight:700,marginBottom:6}}>{entry.version}</div>
-                    {entry.items.map((item,i)=>(
-                      <div key={i} style={{display:"flex",gap:8,marginBottom:4}}>
-                        <span style={{color:th.accent,fontSize:11,flexShrink:0}}>·</span>
-                        <span style={{color:th.sub,fontSize:12,lineHeight:1.5}}>{item}</span>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            )}
+            {showLog&&<div style={{marginTop:11,display:"flex",flexDirection:"column",gap:11}}>
+              {CHANGELOG.map(entry=>(
+                <div key={entry.version}>
+                  <div style={{color:th.accent,fontSize:11,fontWeight:700,marginBottom:4}}>{entry.version}</div>
+                  {entry.items.map((item,i)=><div key={i} style={{display:"flex",gap:6,marginBottom:2}}><span style={{color:th.accent,fontSize:9}}>·</span><span style={{color:th.sub,fontSize:11,lineHeight:1.5}}>{item}</span></div>)}
+                </div>
+              ))}
+            </div>}
           </div>
+        </>}
+
+        {/* ══════════════ HELP ══════════════ */}
+        {tab==="help"&&<>
+          <PageHeader label="Help" title="Uitleg"/>
+          {[
+            {t:"✅ Taken",b:"Voeg taken toe met dag, deadline, begin- en eindtijd. Kies prioriteit (Laag t/m Urgent). Urgente taken pulseren rood. Vink je een hoge of urgente taak af? Confetti! Je kunt ook een link (bijv. YouTube) toevoegen en aangeven met wie je de afspraak hebt."},
+            {t:"🔁 Herhaling",b:"Stel herhaling in per taak: dagelijks, wekelijks (kies welke dag), om de week, maandelijks (kies de datum) of jaarlijks. De taak staat elke keer automatisch klaar."},
+            {t:"📅 Kalender",b:"Bekijk je taken per maand als gekleurde stippen. Klik op een dag om de taken van die dag te zien en af te vinken."},
+            {t:"👥 Personen",b:"Sla contacten op met naam, telefoon, e-mail en woonplaats. Koppel mensen aan taken zodat je weet met wie je een afspraak hebt."},
+            {t:"📁 Verkenner",b:"Maak mappen en tekstbestanden aan. De kladblok-knop in Verkenner maakt snel een leeg bestand. Er zijn sjablonen voor locaties, wachtwoorden en boodschappenlijsten. Bovenaan zie je hoeveel opslagruimte je gebruikt."},
+            {t:"⚡ Sjablonen",b:"Maak vaste taken aan. Bij een nieuwe taak kun je met één klik een sjabloon kiezen — dan is de naam, kleur en prioriteit meteen ingevuld."},
+            {t:"☁️ Synchroniseren",b:"Maak een gratis account op jsonbin.io. Maak een Bin aan en kopieer het Bin ID. Plak dit in Instellingen. Upload om op te slaan, Download om te laden op een ander apparaat."},
+            {t:"💾 Export & Import",b:"Exporteer al je gegevens (taken, personen, bestanden, sjablonen) als JSON-bestand. Importeer dit later of op een ander apparaat."},
+          ].map((s,i)=>(
+            <div key={i} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:13,marginBottom:9}}>
+              <div style={{color:th.text,fontSize:13,fontWeight:600,marginBottom:4}}>{s.t}</div>
+              <div style={{color:th.sub,fontSize:11,lineHeight:1.7}}>{s.b}</div>
+            </div>
+          ))}
         </>}
 
       </div>
 
-      {/* ── BOTTOM NAV ── */}
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:th.navBg,borderTop:`1px solid ${th.border}`,display:"flex",justifyContent:"space-around",alignItems:"center",padding:"8px 0 14px",zIndex:100,backdropFilter:"blur(12px)"}}>
-        {navItems.map(item=>(
-          <button key={item.key} onClick={()=>setTab(item.key)} style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 16px",borderRadius:10,fontFamily:"inherit"}}>
-            <div style={{fontSize:22,lineHeight:1}}>{item.icon}</div>
-            <div style={{fontSize:10,color:tab===item.key?th.accent:th.sub,fontWeight:tab===item.key?700:400,letterSpacing:.5}}>{item.label}</div>
-            {tab===item.key&&<div style={{width:4,height:4,borderRadius:"50%",background:th.accent}}/>}
-          </button>
-        ))}
+      {/* ══════════════ BOTTOM NAV ══════════════ */}
+      <div style={{position:"fixed",bottom:0,left:0,right:0,background:th.navBg,borderTop:`1px solid ${th.border}`,zIndex:100,backdropFilter:"blur(16px)"}}>
+        <div style={{display:"flex",overflowX:"auto",scrollbarWidth:"none",WebkitOverflowScrolling:"touch",padding:"6px 4px 12px",gap:0,justifyContent:"space-around",minWidth:"100%"}}>
+          <style>{`.navscroll::-webkit-scrollbar{display:none;}`}</style>
+          {TABS.map(item=>(
+            <button key={item.key} onClick={()=>setTab(item.key)} style={{background:"none",border:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"3px 10px",borderRadius:9,fontFamily:"inherit",flexShrink:0,minWidth:56}}>
+              <div style={{fontSize:18,lineHeight:1}}>{item.icon}</div>
+              <div style={{fontSize:9,color:tab===item.key?th.accent:th.sub,fontWeight:tab===item.key?700:400,letterSpacing:.2,whiteSpace:"nowrap"}}>{item.label}</div>
+              {tab===item.key&&<div style={{width:3,height:3,borderRadius:"50%",background:th.accent}}/>}
+            </button>
+          ))}
+        </div>
       </div>
+
     </div>
   );
 }
