@@ -23,9 +23,11 @@
 <script type="text/babel">
 const { useState, useRef, useMemo, useEffect } = React;
 
-const VERSION = "v1.03";
+const VERSION = "v1.06";
 
 const CHANGELOG = [
+  { version:"v1.06", items:["Kalender: klik op een dag om alle taken van die dag te zien","Kalender: taken van geselecteerde dag bovenaan getoond","Taken filteren op Deze week en Volgende week"] },
+  { version:"v1.05", items:["Sjabloon-snelkiezer bovenin het taakformulier: één klik vult alles in","Sjablonen zichtbaar als gekleurde chips — geen tabblad nodig"] },
   { version:"v1.03", items:["Onderste navigatiebalk (Taken, Kalender, Sjablonen, Instellingen)","6 thema's: Donker, Licht, Oranje, Mint, Blauw, Roze","Kalenderweergave met gekleurde taak-stippen","Sjablonentabblad: standaard taken met eigen kleur snel toevoegen","Uitvouwbare versiegeschiedenis in Instellingen","Werkt als standalone webapp op GitHub Pages"] },
   { version:"v1.02", items:["Tijdveld per taak","Apple SF Pro lettertype","Export alle taken als JSON","Import taken vanuit JSON-bestand","Versienummer linksboven"] },
   { version:"v1.01", items:["Eerste versie van de takenlijst","Taken toevoegen met dag & deadline","Prioriteit (Laag / Normaal / Hoog)","Filteren op Vandaag / Open / Gedaan","Afvinken en verwijderen van taken"] },
@@ -87,6 +89,7 @@ function App(){
   const [toast,     setToast]        = useState(null);
   const [calMonth,  setCalMonth]     = useState(new Date());
   const [showLog,   setShowLog]      = useState(false);
+  const [selectedDay, setSelectedDay] = useState(null);
   const [editTpl,   setEditTpl]      = useState(null);
   const [tplForm,   setTplForm]      = useState({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});
   const [showTplForm,setShowTplForm] = useState(false);
@@ -101,9 +104,11 @@ function App(){
   function showToast(m){ setToast(m); setTimeout(()=>setToast(null),2500); }
 
   const filtered = tasks.filter(t=>{
-    if(filter==="Vandaag") return t.day===TODAY;
-    if(filter==="Gedaan")  return t.done;
-    if(filter==="Open")    return !t.done;
+    if(filter==="Vandaag")       return t.day===TODAY;
+    if(filter==="Gedaan")        return t.done;
+    if(filter==="Open")          return !t.done;
+    if(filter==="Deze week")     return inWeek(t.day,0)||inWeek(t.deadline,0);
+    if(filter==="Volgende week") return inWeek(t.day,1)||inWeek(t.deadline,1);
     return true;
   }).sort((a,b)=>{
     if(a.done!==b.done) return a.done?1:-1;
@@ -152,6 +157,20 @@ function App(){
     return tasks.filter(t=>t.day===ds||t.deadline===ds);
   }
 
+  function getWeekRange(offset=0){
+    const now=new Date(); now.setHours(0,0,0,0);
+    const day=now.getDay(); const mon=day===0?-6:1-day;
+    const start=new Date(now); start.setDate(now.getDate()+mon+offset*7);
+    const end=new Date(start); end.setDate(start.getDate()+6);
+    return {start,end};
+  }
+  function inWeek(dateStr,offset){
+    if(!dateStr) return false;
+    const {start,end}=getWeekRange(offset);
+    const d=new Date(dateStr+"T00:00:00");
+    return d>=start&&d<=end;
+  }
+
   const inp={background:th.inputBg,border:`1px solid ${th.border}`,borderRadius:8,padding:"10px 14px",color:th.text,fontSize:14,fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box"};
   const navItems=[{key:"taken",icon:"✅",label:"Taken"},{key:"kalender",icon:"📅",label:"Kalender"},{key:"sjablonen",icon:"⚡",label:"Sjablonen"},{key:"instellingen",icon:"⚙️",label:"Instellingen"}];
   const darkAccent = (themeKey==="donker"||themeKey==="oranje") ? "#0f0f14" : "#fff";
@@ -185,7 +204,7 @@ function App(){
 
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,gap:8,flexWrap:"wrap"}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {["Alles","Vandaag","Open","Gedaan"].map(f=>(
+              {["Alles","Vandaag","Deze week","Volgende week","Open","Gedaan"].map(f=>(
                 <button key={f} onClick={()=>setFilter(f)} style={{padding:"5px 13px",borderRadius:20,border:"none",background:filter===f?th.accent:th.badge,color:filter===f?darkAccent:th.sub,fontWeight:filter===f?700:400,fontSize:11}}>{f}</button>
               ))}
             </div>
@@ -227,7 +246,29 @@ function App(){
           {showForm&&(
             <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:18,display:"flex",flexDirection:"column",gap:13}}>
               <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase"}}>{editId!==null?"Bewerken":"Nieuwe taak"}</div>
-              <input value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Wat moet je doen?" onKeyDown={e=>e.key==="Enter"&&addOrEdit()} style={inp}/>
+
+              {/* Sjabloon snelkiezer */}
+              {editId===null&&templates.length>0&&(
+                <div>
+                  <div style={{color:th.sub,fontSize:10,marginBottom:7,letterSpacing:1}}>⚡ SJABLOON KIEZEN</div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {templates.map(tpl=>(
+                      <button key={tpl.id} onClick={()=>setForm({...form,text:tpl.text,priority:tpl.priority,color:tpl.color})}
+                        style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:20,
+                          border:`1.5px solid ${form.text===tpl.text&&form.color===tpl.color?tpl.color:th.border}`,
+                          background:form.text===tpl.text&&form.color===tpl.color?tpl.color+"22":th.badge,
+                          color:form.text===tpl.text&&form.color===tpl.color?tpl.color:th.sub,
+                          fontSize:12,fontFamily:"inherit",fontWeight:form.text===tpl.text?600:400,
+                          whiteSpace:"nowrap"}}>
+                        <span>{tpl.emoji}</span>
+                        <span>{tpl.text}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <input value={form.text} onChange={e=>setForm({...form,text:e.target.value})} placeholder="Of typ zelf een taak…" onKeyDown={e=>e.key==="Enter"&&addOrEdit()} style={inp}/>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
                 <div><div style={{color:th.sub,fontSize:10,marginBottom:4,letterSpacing:1}}>DAG</div><input type="date" value={form.day} onChange={e=>setForm({...form,day:e.target.value})} style={inp}/></div>
                 <div><div style={{color:th.sub,fontSize:10,marginBottom:4,letterSpacing:1}}>DEADLINE</div><input type="date" value={form.deadline} onChange={e=>setForm({...form,deadline:e.target.value})} style={inp}/></div>
@@ -269,7 +310,7 @@ function App(){
 
         {/* ── KALENDER ── */}
         {tab==="kalender"&&<>
-          <div style={{marginBottom:20}}>
+          <div style={{marginBottom:16}}>
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
               <span style={{color:th.accent,fontSize:11,letterSpacing:4,textTransform:"uppercase"}}>Kalender</span>
               <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
@@ -277,7 +318,47 @@ function App(){
             <h1 style={{color:th.text,fontSize:30,fontWeight:600,letterSpacing:-1}}>Overzicht</h1>
             <div style={{height:1,background:`linear-gradient(90deg,${th.accent}44,transparent)`,marginTop:14}}/>
           </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+
+          {/* Geselecteerde dag taken paneel */}
+          {selectedDay&&(()=>{
+            const selTasks=tasksForDay(selectedDay.d);
+            const selDate=new Date(`${selectedDay.y}-${String(selectedDay.m+1).padStart(2,"0")}-${String(selectedDay.d).padStart(2,"0")}T00:00:00`);
+            const selLabel=selDate.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"});
+            return(
+              <div style={{background:th.card,border:`2px solid ${th.accent}`,borderRadius:14,padding:16,marginBottom:16}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                  <div>
+                    <div style={{color:th.accent,fontSize:10,letterSpacing:2,textTransform:"uppercase",marginBottom:2}}>📅 Geselecteerde dag</div>
+                    <div style={{color:th.text,fontSize:15,fontWeight:600,textTransform:"capitalize"}}>{selLabel}</div>
+                  </div>
+                  <button onClick={()=>setSelectedDay(null)} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,padding:"4px 10px",fontSize:12,fontFamily:"inherit"}}>✕ Sluiten</button>
+                </div>
+                {selTasks.length===0?(
+                  <div style={{color:th.muted,fontSize:13,textAlign:"center",padding:"12px 0"}}>Geen taken op deze dag</div>
+                ):(
+                  <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                    {selTasks.map(task=>{
+                      const dot=task.color||PRIO_COLORS[task.priority];
+                      return(
+                        <div key={task.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:task.done?th.badge:th.inputBg,borderRadius:8,border:`1px solid ${th.border}`,borderLeft:`3px solid ${task.done?th.border:dot}`,opacity:task.done?0.6:1}}>
+                          <button onClick={()=>toggle(task.id)} style={{width:18,height:18,borderRadius:"50%",flexShrink:0,border:`2px solid ${task.done?dot:th.border}`,background:task.done?dot:"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {task.done&&<span style={{color:"#fff",fontSize:9,fontWeight:900}}>✓</span>}
+                          </button>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{color:task.done?th.sub:th.text,fontSize:13,fontWeight:500,textDecoration:task.done?"line-through":"none",wordBreak:"break-word"}}>{task.text}</div>
+                            {task.time&&<div style={{color:th.sub,fontSize:11}}>🕐 {task.time}</div>}
+                          </div>
+                          <span style={{background:dot+"22",color:dot,borderRadius:20,padding:"1px 7px",fontSize:10,fontWeight:600,flexShrink:0}}>{task.priority}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
             <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()-1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,padding:"6px 16px",fontSize:18,fontFamily:"inherit"}}>‹</button>
             <div style={{color:th.text,fontWeight:600,fontSize:16}}>{calMonth.toLocaleDateString("nl-NL",{month:"long",year:"numeric"})}</div>
             <button onClick={()=>setCalMonth(new Date(calMonth.getFullYear(),calMonth.getMonth()+1,1))} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,padding:"6px 16px",fontSize:18,fontFamily:"inherit"}}>›</button>
@@ -288,11 +369,16 @@ function App(){
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
             {calDays.cells.map((d,i)=>{
               const dayTasks=tasksForDay(d);
-              const isToday=d&&`${calDays.y}-${String(calDays.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`===TODAY;
+              const ds=d?`${calDays.y}-${String(calDays.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`:null;
+              const isToday=ds===TODAY;
+              const isSelected=selectedDay&&selectedDay.d===d&&selectedDay.m===calDays.m&&selectedDay.y===calDays.y;
               return(
-                <div key={i} style={{minHeight:54,background:isToday?th.accent+"22":d?th.card:"transparent",border:d?`1px solid ${isToday?th.accent:th.border}`:"none",borderRadius:8,padding:"5px 4px"}}>
+                <div key={i} onClick={()=>d&&setSelectedDay(isSelected?null:{d,m:calDays.m,y:calDays.y})}
+                  style={{minHeight:54,background:isSelected?th.accent+"33":isToday?th.accent+"18":d?th.card:"transparent",
+                    border:d?`1.5px solid ${isSelected?th.accent:isToday?th.accent+"88":th.border}`:"none",
+                    borderRadius:8,padding:"5px 4px",cursor:d?"pointer":"default",transition:"all .12s"}}>
                   {d&&<>
-                    <div style={{color:isToday?th.accent:th.sub,fontSize:11,fontWeight:isToday?700:400,textAlign:"center",marginBottom:3}}>{d}</div>
+                    <div style={{color:isSelected?th.accent:isToday?th.accent:th.sub,fontSize:11,fontWeight:isToday||isSelected?700:400,textAlign:"center",marginBottom:3}}>{d}</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:2,justifyContent:"center"}}>
                       {dayTasks.slice(0,4).map((t,j)=><div key={j} style={{width:7,height:7,borderRadius:"50%",background:t.color||PRIO_COLORS[t.priority],opacity:t.done?0.4:1}} title={t.text}/>)}
                       {dayTasks.length>4&&<div style={{fontSize:8,color:th.sub}}>+{dayTasks.length-4}</div>}
@@ -302,13 +388,16 @@ function App(){
               );
             })}
           </div>
-          <div style={{marginTop:16,display:"flex",gap:12,flexWrap:"wrap"}}>
+          <div style={{marginTop:14,display:"flex",gap:12,flexWrap:"wrap"}}>
             {Object.entries(PRIO_COLORS).map(([p,c])=>(
               <div key={p} style={{display:"flex",alignItems:"center",gap:5}}>
                 <div style={{width:8,height:8,borderRadius:"50%",background:c}}/>
                 <span style={{color:th.sub,fontSize:11}}>{p}</span>
               </div>
             ))}
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <span style={{color:th.muted,fontSize:11}}>Klik op een dag om taken te zien</span>
+            </div>
           </div>
         </>}
 
