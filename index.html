@@ -119,6 +119,165 @@ function getStorageUsed(){
   return total;
 }
 
+/* ─── Rename input component (avoids DOM getElementById hacks) ─── */
+function VRenameInput({currentName,onSave,onCancel,inp,th,darkAccent}){
+  const [val,setVal]=React.useState(currentName);
+  return(
+    <>
+      <input value={val} onChange={e=>setVal(e.target.value)} autoFocus onKeyDown={e=>{if(e.key==="Enter"&&val.trim()){onSave(val.trim());onCancel();}if(e.key==="Escape")onCancel();}} style={{...inp,flex:1,padding:"5px 10px",fontSize:13}}/>
+      <button onClick={()=>{if(val.trim()){onSave(val.trim());onCancel();}}} style={{padding:"5px 11px",background:th.accent,border:"none",borderRadius:7,color:darkAccent,fontFamily:"inherit",fontSize:12,flexShrink:0}}>OK</button>
+      <button onClick={onCancel} style={{padding:"5px 9px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,fontFamily:"inherit",fontSize:12,flexShrink:0}}>✕</button>
+    </>
+  );
+}
+
+/* ─── Inline name input for new file/folder ─── */
+function VNewInput({label,placeholder,onConfirm,onCancel,inp,th,darkAccent}){
+  const [val,setVal]=React.useState("");
+  return(
+    <div style={{display:"flex",gap:7,marginTop:8,alignItems:"center"}}>
+      <input value={val} onChange={e=>setVal(e.target.value)} autoFocus placeholder={placeholder} onKeyDown={e=>{if(e.key==="Enter"&&val.trim())onConfirm(val.trim());if(e.key==="Escape")onCancel();}} style={{...inp,flex:1,padding:"8px 12px",fontSize:13}}/>
+      <button onClick={()=>{if(val.trim())onConfirm(val.trim());}} style={{padding:"8px 14px",background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontFamily:"inherit",fontSize:13,fontWeight:600,flexShrink:0}}>OK</button>
+      <button onClick={onCancel} style={{padding:"8px 10px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontFamily:"inherit",fontSize:13,flexShrink:0}}>✕</button>
+    </div>
+  );
+}
+
+/* ─── Folder view component with drag & drop ─── */
+function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,renaming,setFiles,setFolders,newFile,newFolder,deleteFolder,th,inp,darkAccent,breadcrumb,currentFolderFiles,currentSubFolders,vNewName,setVNewName,vNewMode,setVNewMode,vDragOver,setVDragOver,updateFile}){
+  const [dragId,setDragId]=React.useState(null);
+  const [dragType,setDragType]=React.useState(null); // "file"|"folder"
+
+  const bc=breadcrumb();
+  const subFolders=currentSubFolders();
+  const folderFiles=currentFolderFiles();
+
+  function onDragStart(e,id,type){
+    setDragId(id);setDragType(type);
+    e.dataTransfer.effectAllowed="move";
+    e.dataTransfer.setData("text/plain",id);
+  }
+  function onDragOver(e,targetFolderId){
+    e.preventDefault();e.dataTransfer.dropEffect="move";
+    setVDragOver(targetFolderId);
+  }
+  function onDrop(e,targetFolderId){
+    e.preventDefault();setVDragOver(null);
+    if(!dragId)return;
+    if(dragType==="file"){
+      setFiles(files.map(f=>f.id===dragId?{...f,folderId:targetFolderId}:f));
+    } else if(dragType==="folder"){
+      if(dragId===targetFolderId)return;
+      setFolders(folders.map(fo=>fo.id===dragId?{...fo,parentId:targetFolderId}:fo));
+    }
+    setDragId(null);setDragType(null);
+  }
+  function onDragEnd(){setDragId(null);setDragType(null);setVDragOver(null);}
+
+  const dropZoneStyle=(fid)=>({
+    outline:vDragOver===fid?`2px dashed ${th.accent}`:"none",
+    background:vDragOver===fid?th.accent+"14":"transparent",
+    borderRadius:9,
+    transition:"all .12s",
+  });
+
+  function handleTplClick(tpl){
+    setVNewMode("tpl:"+FILE_TPLS.indexOf(tpl));
+    setVNewName(tpl.name);
+  }
+
+  return(
+    <div>
+      {/* Breadcrumb / drop zone for root */}
+      <div
+        style={{display:"flex",alignItems:"center",gap:5,marginBottom:12,flexWrap:"wrap",padding:"4px 6px",borderRadius:8,...dropZoneStyle(null)}}
+        onDragOver={e=>onDragOver(e,null)} onDrop={e=>onDrop(e,null)} onDragLeave={()=>setVDragOver(null)}>
+        <button onClick={()=>setVFolder(null)} style={{background:"none",border:"none",color:vFolder===null?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:vFolder===null?700:400,padding:0}}>📁 Root</button>
+        {bc.map((fo,i)=>(
+          <React.Fragment key={fo.id}>
+            <span style={{color:th.muted,fontSize:12}}>›</span>
+            <button onClick={()=>setVFolder(fo.id)} style={{background:"none",border:"none",color:i===bc.length-1?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:i===bc.length-1?700:400,padding:0}}>{fo.name}</button>
+          </React.Fragment>
+        ))}
+        {vDragOver===null&&dragId&&<span style={{color:th.accent,fontSize:11,marginLeft:6}}>⬆ Laat hier los voor Root</span>}
+      </div>
+
+      {/* Sub-folders */}
+      {subFolders.map(fo=>(
+        <div key={fo.id}
+          draggable onDragStart={e=>onDragStart(e,fo.id,"folder")} onDragEnd={onDragEnd}
+          onDragOver={e=>onDragOver(e,fo.id)} onDrop={e=>onDrop(e,fo.id)} onDragLeave={()=>setVDragOver(null)}
+          onClick={()=>setVFolder(fo.id)}
+          style={{background:th.card,border:`1px solid ${vDragOver===fo.id?th.accent:th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"grab",opacity:dragId===fo.id?0.4:1,outline:vDragOver===fo.id?`2px solid ${th.accent}`:"none"}}>
+          <span style={{fontSize:20}}>📁</span>
+          {renaming&&renaming.id===fo.id?(
+            <div style={{flex:1,display:"flex",gap:7}} onClick={e=>e.stopPropagation()}>
+              <VRenameInput currentName={fo.name} onSave={v=>setFolders(folders.map(x=>x.id===fo.id?{...x,name:v}:x))} onCancel={()=>setRenaming(null)} inp={inp} th={th} darkAccent={darkAccent}/>
+            </div>
+          ):(
+            <>
+              <div style={{flex:1,color:th.text,fontSize:13,fontWeight:500}}>{fo.name}</div>
+              <span style={{color:th.sub,fontSize:10}}>{files.filter(f=>f.folderId===fo.id).length} best.</span>
+              <button onClick={e=>{e.stopPropagation();setRenaming({id:fo.id});}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>✏️</button>
+              <button onClick={e=>{e.stopPropagation();deleteFolder(fo.id);}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
+            </>
+          )}
+        </div>
+      ))}
+
+      {/* Files */}
+      {folderFiles.map(f=>(
+        <div key={f.id}
+          draggable onDragStart={e=>onDragStart(e,f.id,"file")} onDragEnd={onDragEnd}
+          onClick={()=>{setVFile(f.id);setRenaming(null);}}
+          style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"grab",opacity:dragId===f.id?0.4:1}}>
+          <span style={{fontSize:18}}>📄</span>
+          {renaming&&renaming.id===f.id?(
+            <div style={{flex:1,display:"flex",gap:7}} onClick={e=>e.stopPropagation()}>
+              <VRenameInput currentName={f.name} onSave={v=>updateFile(f.id,{name:v})} onCancel={()=>setRenaming(null)} inp={inp} th={th} darkAccent={darkAccent}/>
+            </div>
+          ):(
+            <>
+              <div style={{flex:1,color:th.text,fontSize:13}}>{f.name}</div>
+              <span style={{color:th.sub,fontSize:10}}>{f.content.length} tekens</span>
+              <button onClick={e=>{e.stopPropagation();setRenaming({id:f.id});}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>✏️</button>
+              <button onClick={e=>{e.stopPropagation();setFiles(files.filter(x=>x.id!==f.id));}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
+            </>
+          )}
+        </div>
+      ))}
+
+      {subFolders.length===0&&folderFiles.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"22px 0",fontSize:13}}>Nog leeg — maak een bestand of map aan</div>}
+
+      {/* New file/folder inline input */}
+      {vNewMode&&vNewMode.startsWith("tpl:")?(()=>{
+        const tplIdx=parseInt(vNewMode.split(":")[1]);
+        const tpl=FILE_TPLS[tplIdx];
+        return<VNewInput label={tpl.name} placeholder={`Naam voor ${tpl.name}…`} onConfirm={name=>{const id=newFile(name,tpl.content);setVFile(id);setVNewMode(null);setVNewName("");}} onCancel={()=>{setVNewMode(null);setVNewName("");}} inp={inp} th={th} darkAccent={darkAccent}/>;
+      })():null}
+      {vNewMode==="file"&&<VNewInput label="bestand" placeholder="Naam van het bestand…" onConfirm={name=>{const id=newFile(name);setVFile(id);setVNewMode(null);}} onCancel={()=>setVNewMode(null)} inp={inp} th={th} darkAccent={darkAccent}/>}
+      {vNewMode==="folder"&&<VNewInput label="map" placeholder="Naam van de map…" onConfirm={name=>{newFolder(name);setVNewMode(null);}} onCancel={()=>setVNewMode(null)} inp={inp} th={th} darkAccent={darkAccent}/>}
+
+      {/* Action bar */}
+      <div style={{display:"flex",gap:7,marginTop:10,flexWrap:"wrap"}}>
+        <button onClick={()=>setVNewMode("folder")} style={{flex:1,minWidth:110,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📁 Nieuwe map</button>
+        <button onClick={()=>setVNewMode("file")} style={{flex:1,minWidth:110,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📄 Nieuw bestand</button>
+      </div>
+
+      {/* Snelle sjablonen */}
+      <div style={{marginTop:9,display:"flex",gap:6,flexWrap:"wrap"}}>
+        {FILE_TPLS.map((tpl,i)=>(
+          <button key={i} onClick={()=>handleTplClick(tpl)} style={{padding:"7px 12px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontFamily:"inherit",fontSize:12,display:"flex",alignItems:"center",gap:5}}>
+            <span>{tpl.icon}</span><span>{tpl.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {dragId&&<div style={{marginTop:12,padding:"8px 12px",background:th.accent+"18",border:`1px dashed ${th.accent}`,borderRadius:8,color:th.accent,fontSize:11,textAlign:"center"}}>🖐 Sleep naar een map om te verplaatsen · Sleep naar "Root" voor de hoofdmap</div>}
+    </div>
+  );
+}
+
 const EMPTY_FORM={text:"",deadline:TODAY,time:"",endTime:"",priority:"Normaal",day:TODAY,color:"",recur:{type:"geen",weekdag:1,maanddag:1,jaarDatum:""},link:"",personIds:[]};
 
 function App(){
@@ -150,7 +309,10 @@ function App(){
   // Verkenner state
   const [vFolder,  setVFolder]  = useState(null);   // current folder id (null=root)
   const [vFile,    setVFile]    = useState(null);    // open file id
-  const [renaming, setRenaming] = useState(null);    // {id, type:"file"|"folder", val}
+  const [renaming, setRenaming] = useState(null);
+  const [vNewMode, setVNewMode] = useState(null);
+  const [vNewName, setVNewName] = useState("");
+  const [vDragOver, setVDragOver] = useState(null);
   const [syncCode, setSyncCodeR]= useState(()=>lv("syncCode",""));
   const [syncSt,   setSyncSt]   = useState("");
   const importRef=useRef();
@@ -576,92 +738,49 @@ function App(){
           {/* Storage meter */}
           <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:"10px 14px",marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <span style={{color:th.sub,fontSize:11}}>💾 Opslag</span>
-              <span style={{color:storageColor,fontSize:11,fontWeight:600}}>{(storageBytes/1024).toFixed(1)} KB / 5 MB ({storagePct.toFixed(1)}%)</span>
+              <span style={{color:th.sub,fontSize:11}}>💾 Opslag gebruikt</span>
+              <span style={{color:storageColor,fontSize:11,fontWeight:600}}>{(storageBytes/1024).toFixed(1)} KB / 5 120 KB ({storagePct.toFixed(1)}%)</span>
             </div>
-            <div style={{height:6,background:th.muted,borderRadius:3,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${storagePct}%`,background:storageColor,borderRadius:3,transition:"width .4s"}}/>
+            <div style={{height:7,background:th.muted,borderRadius:4,overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${storagePct}%`,background:storageColor,borderRadius:4,transition:"width .5s"}}/>
             </div>
           </div>
 
           {/* File open view */}
           {vFile!==null?(()=>{
             const f=files.find(x=>x.id===vFile);
-            if(!f)return<div style={{color:th.muted}}>Bestand niet gevonden</div>;
+            if(!f){setVFile(null);return null;}
             return(
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <button onClick={()=>{setVFile(null);setRenaming(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.accent,padding:"5px 11px",fontSize:12,fontFamily:"inherit"}}>← Terug</button>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <button onClick={()=>{setVFile(null);setRenaming(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.accent,padding:"5px 11px",fontSize:12,fontFamily:"inherit",flexShrink:0}}>← Terug</button>
                   {renaming&&renaming.id===vFile?(
-                    <>
-                      <input id="rnInput" defaultValue={f.name} style={{...inp,flex:1,padding:"5px 10px",fontSize:13}}/>
-                      <button onClick={()=>{const v=document.getElementById("rnInput").value.trim();if(v)updateFile(vFile,{name:v});setRenaming(null);}} style={{padding:"5px 11px",background:th.accent,border:"none",borderRadius:7,color:darkAccent,fontFamily:"inherit",fontSize:12}}>OK</button>
-                    </>
+                    <VRenameInput currentName={f.name} onSave={v=>updateFile(vFile,{name:v})} onCancel={()=>setRenaming(null)} inp={inp} th={th} darkAccent={darkAccent}/>
                   ):(
                     <>
-                      <div style={{color:th.text,fontSize:14,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                      <button onClick={()=>setRenaming({id:vFile,type:"file"})} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
+                      <div style={{color:th.text,fontSize:14,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{f.name}</div>
+                      <button onClick={()=>setRenaming({id:vFile})} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3,flexShrink:0}} title="Hernoemen">✏️</button>
                     </>
                   )}
-                  <button onClick={()=>{const blob=new Blob([f.content],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=f.name+(f.name.includes(".")?"":" .txt");a.click();URL.revokeObjectURL(url);}} style={{background:"none",border:"none",color:th.accent,fontSize:13,padding:3,flexShrink:0}}>↓</button>
+                  <button onClick={()=>{const blob=new Blob([f.content],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=f.name.includes(".")?f.name:f.name+".txt";a.click();URL.revokeObjectURL(url);}} style={{background:"none",border:"none",color:th.accent,fontSize:13,padding:3,flexShrink:0}} title="Downloaden">↓</button>
                 </div>
-                <textarea value={f.content} onChange={e=>updateFile(vFile,{content:e.target.value})} style={{...inp,minHeight:380,padding:14,fontSize:13,lineHeight:1.75,borderRadius:11}} placeholder="Begin met typen…"/>
-                <div style={{color:th.muted,fontSize:10,textAlign:"right"}}>{f.content.length} tekens · auto opgeslagen</div>
+                <textarea value={f.content} onChange={e=>updateFile(vFile,{content:e.target.value})} style={{...inp,minHeight:400,padding:14,fontSize:13,lineHeight:1.78,borderRadius:11}} placeholder="Begin met typen…"/>
+                <div style={{color:th.muted,fontSize:10,textAlign:"right"}}>{f.content.length} tekens · automatisch opgeslagen</div>
               </div>
             );
           })():(
             /* Folder view */
-            <div>
-              {/* Breadcrumb */}
-              <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:12,flexWrap:"wrap"}}>
-                <button onClick={()=>setVFolder(null)} style={{background:"none",border:"none",color:vFolder===null?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:vFolder===null?700:400,padding:0}}>📁 Root</button>
-                {breadcrumb().map((fo,i)=>(
-                  <React.Fragment key={fo.id}>
-                    <span style={{color:th.muted,fontSize:12}}>›</span>
-                    <button onClick={()=>setVFolder(fo.id)} style={{background:"none",border:"none",color:i===breadcrumb().length-1?th.accent:th.sub,fontSize:13,fontFamily:"inherit",fontWeight:i===breadcrumb().length-1?700:400,padding:0}}>{fo.name}</button>
-                  </React.Fragment>
-                ))}
-              </div>
-
-              {/* Sub-folders */}
-              {currentSubFolders().map(fo=>(
-                <div key={fo.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"pointer"}} onClick={()=>setVFolder(fo.id)}>
-                  <span style={{fontSize:20}}>📁</span>
-                  <div style={{flex:1,color:th.text,fontSize:13,fontWeight:500}}>{fo.name}</div>
-                  <span style={{color:th.sub,fontSize:10}}>{files.filter(f=>f.folderId===fo.id).length} best.</span>
-                  <button onClick={e=>{e.stopPropagation();if(window.confirm(`Map "${fo.name}" verwijderen?`))deleteFolder(fo.id);}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
-                </div>
-              ))}
-
-              {/* Files */}
-              {currentFolderFiles().map(f=>(
-                <div key={f.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"pointer"}} onClick={()=>{setVFile(f.id);setRenaming(null);}}>
-                  <span style={{fontSize:18}}>📄</span>
-                  <div style={{flex:1,color:th.text,fontSize:13}}>{f.name}</div>
-                  <span style={{color:th.sub,fontSize:10}}>{f.content.length} tekens</span>
-                  <button onClick={e=>{e.stopPropagation();if(window.confirm(`"${f.name}" verwijderen?`))setFiles(files.filter(x=>x.id!==f.id));}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
-                </div>
-              ))}
-
-              {currentSubFolders().length===0&&currentFolderFiles().length===0&&(
-                <div style={{color:th.muted,textAlign:"center",padding:"24px 0",fontSize:13}}>Nog leeg</div>
-              )}
-
-              {/* Action buttons */}
-              <div style={{display:"flex",gap:7,marginTop:10}}>
-                <button onClick={()=>{const n=window.prompt("Naam van de map:");if(n?.trim())newFolder(n.trim());}} style={{flex:1,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📁 Nieuwe map</button>
-                <button onClick={()=>{const n=window.prompt("Naam van het bestand:");if(n?.trim()){const id=newFile(n.trim());setVFile(id);}}} style={{flex:1,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📄 Nieuw bestand</button>
-              </div>
-
-              {/* File templates */}
-              <div style={{marginTop:8,display:"flex",gap:6,flexWrap:"wrap"}}>
-                {FILE_TPLS.map((tpl,i)=>(
-                  <button key={i} onClick={()=>{const n=window.prompt("Naam:",tpl.name);if(n?.trim()){const id=newFile(n.trim(),tpl.content);setVFile(id);}}} style={{padding:"6px 11px",background:th.badge,border:`1px solid ${th.border}`,borderRadius:8,color:th.sub,fontFamily:"inherit",fontSize:11}}>
-                    {tpl.icon} {tpl.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <VFolderView
+              files={files} folders={folders} vFolder={vFolder} setVFolder={setVFolder}
+              setVFile={setVFile} setRenaming={setRenaming} renaming={renaming}
+              setFiles={setFiles} setFolders={setFolders}
+              newFile={newFile} newFolder={newFolder} deleteFolder={deleteFolder}
+              th={th} inp={inp} darkAccent={darkAccent}
+              breadcrumb={breadcrumb} currentFolderFiles={currentFolderFiles} currentSubFolders={currentSubFolders}
+              vNewName={vNewName} setVNewName={setVNewName} vNewMode={vNewMode} setVNewMode={setVNewMode}
+              vDragOver={vDragOver} setVDragOver={setVDragOver}
+              updateFile={updateFile}
+            />
           )}
         </>}
 
