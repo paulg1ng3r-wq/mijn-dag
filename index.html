@@ -316,6 +316,7 @@ function App(){
   const [vDragOver, setVDragOver] = useState(null);
   const [syncCode, setSyncCodeR]= useState(()=>lv("syncCode",""));
   const [syncSt,   setSyncSt]   = useState("");
+  const [openLive, setOpenLive] = useState(null);
   const importRef=useRef();
 
   const th=THEMES[themeKey];
@@ -738,8 +739,6 @@ function App(){
 
           {/* ══ LIVE APP-DATA PANEEL ══ */}
           {(()=>{
-            const [openLive,setOpenLive]=React.useState(null);
-
             function takenTxt(){
               const open=tasks.filter(t=>!t.done);
               const gedaan=tasks.filter(t=>t.done);
