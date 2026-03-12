@@ -26,10 +26,11 @@ textarea{resize:vertical;font-family:inherit;}
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useRef,useMemo,useEffect} = React;
-const VERSION = "v1.09";
+const VERSION = "v1.10";
 
 const CHANGELOG = [
-  {version:"v1.09",items:["Live app-data bovenaan Verkenner: taken, personen, sjablonen, kalender","Bekijken als tekst of downloaden als .txt","Update automatisch als gegevens veranderen"]},
+  {version:"v1.10",items:["Startpagina met widgets: afspraken, taken, weer, bestanden, favoriete contacten","Live datum & tijd zichtbaar op elk tabblad","Zoekbalk bij Taken, Personen en Sjablonen","Stad voor weer instelbaar in Instellingen","Personen als favoriet markeren"]},
+  {version:"v1.09",items:["Live app-data bovenaan Verkenner"]},
   {version:"v1.08",items:["Kladblok verplaatst naar Verkenner","Verkenner volledig herschreven en gerepareerd","5MB gebruiksmeter bovenaan Verkenner","Alle tabbladen direct zichtbaar (geen Meer-menu)","Tabs scrollbaar als ze niet passen"]},
   {version:"v1.07",items:["Eindtijd afspraken","Herhaling (dagelijks/wekelijks/maandelijks/jaarlijks)","Synchroniseren via JSONBin","Link bij taken","Personen + koppelen","Help pagina","Urgentie-trigger + confetti","Verkenner met mappen en sjablonen"]},
   {version:"v1.06",items:["Kalender klikbaar per dag","Filter deze week / volgende week"]},
@@ -291,6 +292,7 @@ function App(){
   const [persons,  setPersons]  = useLs("persons",[]);
   const [files,    setFilesRaw] = useLs("vfiles",[]);
   const [folders,  setFolders]  = useLs("vfolders",[]);
+  const [weatherCity,setWeatherCity] = useLs("weatherCity","Rotterdam");
 
   const [tab,      setTab]      = useState("taken");
   const [filter,   setFilter]   = useState("Alles");
@@ -317,6 +319,12 @@ function App(){
   const [syncCode, setSyncCodeR]= useState(()=>lv("syncCode",""));
   const [syncSt,   setSyncSt]   = useState("");
   const [openLive, setOpenLive] = useState(null);
+  const [taakZoek,  setTaakZoek]  = useState("");
+  const [perZoek,   setPerZoek]   = useState("");
+  const [tplZoek,   setTplZoek]   = useState("");
+  const [now,       setNow]        = useState(new Date());
+  const [weather,   setWeather]    = useState(null);
+  const [weatherLoad,setWeatherLoad]= useState(false);
   const importRef=useRef();
 
   const th=THEMES[themeKey];
@@ -324,6 +332,39 @@ function App(){
 
   function saveSyncCode(v){setSyncCodeR(v);sv("syncCode",v);}
   function showToast(m){setToast(m);setTimeout(()=>setToast(null),2500);}
+
+  /* ─── Live clock ─── */
+  useEffect(()=>{
+    const t=setInterval(()=>setNow(new Date()),1000);
+    return()=>clearInterval(t);
+  },[]);
+
+  /* ─── Weather via Open-Meteo (free, no key) ─── */
+  async function fetchWeather(city){
+    setWeatherLoad(true);
+    try{
+      const geo=await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=nl&format=json`);
+      const gj=await geo.json();
+      if(!gj.results||!gj.results[0])throw new Error("Stad niet gevonden");
+      const{latitude:lat,longitude:lon,name}=gj.results[0];
+      const wx=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m&timezone=auto`);
+      const wj=await wx.json();
+      const cur=wj.current;
+      const code=cur.weathercode;
+      let icon="🌤",desc="Gedeeltelijk bewolkt";
+      if(code===0){icon="☀️";desc="Helder";}
+      else if(code<=3){icon="⛅";desc="Bewolkt";}
+      else if(code<=48){icon="🌫️";desc="Mist";}
+      else if(code<=57){icon="🌦️";desc="Motregen";}
+      else if(code<=67){icon="🌧️";desc="Regen";}
+      else if(code<=77){icon="❄️";desc="Sneeuw";}
+      else if(code<=82){icon="🌧️";desc="Regenbuien";}
+      else if(code<=99){icon="⛈️";desc="Onweer";}
+      setWeather({icon,desc,temp:Math.round(cur.temperature_2m),wind:Math.round(cur.windspeed_10m),name});
+    }catch(e){setWeather({error:e.message||"Fout"});}
+    setWeatherLoad(false);
+  }
+  useEffect(()=>{fetchWeather(weatherCity);},[weatherCity]);
 
   /* ─── File helpers ─── */
   function setFiles(v){setFilesRaw(v);sv("vfiles",v);}
@@ -350,7 +391,7 @@ function App(){
     return d>=s&&d<=e;
   }
 
-  const filtered=tasks.filter(t=>{
+  const filteredBase=tasks.filter(t=>{
     if(filter==="Vandaag")      return t.day===TODAY;
     if(filter==="Gedaan")       return t.done;
     if(filter==="Open")         return !t.done;
@@ -361,6 +402,7 @@ function App(){
     if(a.done!==b.done)return a.done?1:-1;
     return PRIORITIES.indexOf(b.priority)-PRIORITIES.indexOf(a.priority);
   });
+  const filtered=filteredBase.filter(t=>!taakZoek||t.text.toLowerCase().includes(taakZoek.toLowerCase()));
 
   function addOrEdit(){
     if(!form.text.trim())return;
@@ -454,6 +496,7 @@ function App(){
   const inp={background:th.inputBg,border:`1px solid ${th.border}`,borderRadius:8,padding:"10px 14px",color:th.text,fontSize:14,fontFamily:"inherit",outline:"none",width:"100%"};
 
   const TABS=[
+    {key:"home",    icon:"🏠",label:"Start"},
     {key:"taken",   icon:"✅",label:"Taken"},
     {key:"kalender",icon:"📅",label:"Kalender"},
     {key:"personen",icon:"👥",label:"Personen"},
@@ -604,6 +647,16 @@ function App(){
       <style>{`::-webkit-scrollbar-thumb{background:${th.border};border-radius:4px;}`}</style>
       {toast&&<div style={{position:"fixed",top:18,left:"50%",transform:"translateX(-50%)",background:th.card,border:`1px solid ${th.border}`,borderRadius:12,padding:"9px 18px",color:th.text,fontSize:13,zIndex:9998,boxShadow:"0 8px 32px #0007",whiteSpace:"nowrap"}}>{toast}</div>}
 
+      {/* ── LIVE CLOCK BAR ── */}
+      <div style={{position:"sticky",top:0,zIndex:90,background:th.navBg,backdropFilter:"blur(14px)",borderBottom:`1px solid ${th.border}`,padding:"7px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{color:th.accent,fontSize:13,fontWeight:700,letterSpacing:.5,fontVariantNumeric:"tabular-nums"}}>
+          {now.toLocaleTimeString("nl-NL",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+        </div>
+        <div style={{color:th.sub,fontSize:11,textTransform:"capitalize"}}>
+          {now.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}
+        </div>
+      </div>
+
       <div style={{width:"100%",maxWidth:560,flex:1,padding:"26px 13px 100px"}}>
 
         {/* ══════════════ TAKEN ══════════════ */}
@@ -631,6 +684,12 @@ function App(){
             <button onClick={exportAll} style={{marginLeft:"auto",padding:"5px 9px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.accent,fontSize:10}}>↑ Export</button>
             <button onClick={()=>importRef.current.click()} style={{padding:"5px 9px",borderRadius:20,border:`1px solid ${th.border}`,background:th.card,color:th.sub,fontSize:10}}>↓ Import</button>
             <input ref={importRef} type="file" accept=".json" onChange={importAll} style={{display:"none"}}/>
+          </div>
+          {/* Zoekbalk taken */}
+          <div style={{position:"relative",marginBottom:12}}>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:th.sub,fontSize:13}}>🔍</span>
+            <input value={taakZoek} onChange={e=>setTaakZoek(e.target.value)} placeholder="Zoek taken…" style={{...inp,paddingLeft:32,paddingTop:8,paddingBottom:8}}/>
+            {taakZoek&&<button onClick={()=>setTaakZoek("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:th.sub,fontSize:14,cursor:"pointer"}}>✕</button>}
           </div>
           {filtered.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"30px 0",fontSize:13}}>Geen taken gevonden</div>}
           {filtered.map(task=><TaskCard key={task.id} task={task}/>)}
@@ -699,9 +758,15 @@ function App(){
         {/* ══════════════ PERSONEN ══════════════ */}
         {tab==="personen"&&<>
           <PageHeader label="Personen" title="Contacten"/>
+          {/* Zoekbalk personen */}
+          <div style={{position:"relative",marginBottom:12}}>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:th.sub,fontSize:13}}>🔍</span>
+            <input value={perZoek} onChange={e=>setPerZoek(e.target.value)} placeholder="Zoek personen…" style={{...inp,paddingLeft:32,paddingTop:8,paddingBottom:8}}/>
+            {perZoek&&<button onClick={()=>setPerZoek("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:th.sub,fontSize:14,cursor:"pointer"}}>✕</button>}
+          </div>
           {persons.length===0&&!showPerF&&<div style={{color:th.muted,textAlign:"center",padding:"28px 0",fontSize:13}}>Nog geen personen opgeslagen</div>}
           <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14}}>
-            {persons.map(p=>(
+            {persons.filter(p=>!perZoek||p.name.toLowerCase().includes(perZoek.toLowerCase())||p.phone?.includes(perZoek)||p.email?.toLowerCase().includes(perZoek.toLowerCase())).map(p=>(
               <div key={p.id} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:"11px 13px",display:"flex",alignItems:"center",gap:11}}>
                 <div style={{fontSize:22,flexShrink:0}}>{p.emoji}</div>
                 <div style={{flex:1,minWidth:0}}>
@@ -895,9 +960,14 @@ function App(){
         {/* ══════════════ SJABLONEN ══════════════ */}
         {tab==="sjablonen"&&<>
           <PageHeader label="Sjablonen" title="Standaard taken"/>
-          <div style={{color:th.sub,fontSize:12,marginBottom:12}}>Klik op een sjabloon om het direct toe te voegen voor vandaag.</div>
+          <div style={{color:th.sub,fontSize:12,marginBottom:10}}>Klik op een sjabloon om het direct toe te voegen voor vandaag.</div>
+          <div style={{position:"relative",marginBottom:12}}>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:th.sub,fontSize:13}}>🔍</span>
+            <input value={tplZoek} onChange={e=>setTplZoek(e.target.value)} placeholder="Zoek sjablonen…" style={{...inp,paddingLeft:32,paddingTop:8,paddingBottom:8}}/>
+            {tplZoek&&<button onClick={()=>setTplZoek("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:th.sub,fontSize:14,cursor:"pointer"}}>✕</button>}
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14}}>
-            {templates.map(tpl=>(
+            {templates.filter(tpl=>!tplZoek||tpl.text.toLowerCase().includes(tplZoek.toLowerCase())).map(tpl=>(
               <div key={tpl.id} style={{background:th.card,border:`1px solid ${th.border}`,borderLeft:`3px solid ${tpl.color}`,borderRadius:10,padding:"10px 13px",display:"flex",alignItems:"center",gap:10}}>
                 <div style={{fontSize:19,flexShrink:0}}>{tpl.emoji}</div>
                 <div style={{flex:1}}><div style={{color:th.text,fontSize:13,fontWeight:500}}>{tpl.text}</div><span style={{background:tpl.color+"22",color:tpl.color,borderRadius:20,padding:"1px 7px",fontSize:9,fontWeight:600}}>{tpl.priority}</span></div>
