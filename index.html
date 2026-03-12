@@ -799,9 +799,9 @@ function App(){
             {taakZoek&&<button onClick={()=>setTaakZoek("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:th.sub,fontSize:14,cursor:"pointer"}}>✕</button>}
           </div>
           {filtered.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"30px 0",fontSize:13}}>Geen taken gevonden</div>}
-          {filtered.map(task=><TaskCard key={task.id} task={task}/>)}
+          {filtered.map(task=>{TaskCard({task})})}
           {!showForm&&<button onClick={()=>{setShowForm(true);setEditId(null);setForm(EMPTY_FORM);}} style={{width:"100%",padding:12,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:13,fontFamily:"inherit",marginTop:2}}>+ Nieuwe taak</button>}
-          {showForm&&<TaskForm/>}
+          {showForm&&TaskForm()}
           <div style={{marginTop:20,display:"flex",justifyContent:"center",gap:16}}>
             {[["OPEN",tasks.filter(t=>!t.done).length,th.accent],["GEDAAN",tasks.filter(t=>t.done).length,"#66bb6a"],["TOTAAL",tasks.length,th.text]].map(([l,v,c],i,a)=>(
               <div key={l} style={{display:"flex",alignItems:"center",gap:16}}>
@@ -814,20 +814,20 @@ function App(){
 
         {/* ══════════════ KALENDER ══════════════ */}
         {tab==="kalender"&&<>
-          <PageHeader label="Kalender" title="Overzicht"/>
+          {PageHeader({label:"Kalender",title:"Overzicht"})}
           {selDay&&(()=>{
             const sd=selDay;
             const ds=`${sd.y}-${String(sd.m+1).padStart(2,"0")}-${String(sd.d).padStart(2,"0")}`;
             const selTasks=tasks.filter(t=>t.day===ds||t.deadline===ds);
             const selDate=new Date(ds+"T00:00:00");
             return(
-              <div style={{background:th.card,border:`2px solid ${th.accent}`,borderRadius:13,padding:13,marginBottom:13}}>
+              <div onClick={e=>e.stopPropagation()} style={{background:th.card,border:`2px solid ${th.accent}`,borderRadius:13,padding:13,marginBottom:13}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
                   <div style={{color:th.text,fontSize:14,fontWeight:600,textTransform:"capitalize"}}>{selDate.toLocaleDateString("nl-NL",{weekday:"long",day:"numeric",month:"long"})}</div>
-                  <button onClick={()=>setSelDay(null)} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"3px 8px",fontSize:11,fontFamily:"inherit"}}>✕</button>
+                  <button onClick={e=>{e.stopPropagation();setSelDay(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"3px 8px",fontSize:11,fontFamily:"inherit"}}>✕</button>
                 </div>
                 {selTasks.length===0?<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"6px 0"}}>Geen taken</div>
-                  :selTasks.map(t=><TaskCard key={t.id} task={t} compact/>)}
+                  :selTasks.map(t=>{TaskCard({task:t,compact:true})})}
               </div>
             );
           })()}
@@ -846,7 +846,7 @@ function App(){
               const isToday=ds===TODAY;
               const isSel=selDay&&selDay.d===d&&selDay.m===calDays.m&&selDay.y===calDays.y;
               return(
-                <div key={i} onClick={()=>d&&setSelDay(isSel?null:{d,m:calDays.m,y:calDays.y})}
+                <div key={i} onClick={e=>{e.stopPropagation();if(d)setSelDay({d,m:calDays.m,y:calDays.y});}}
                   style={{minHeight:46,background:isSel?th.accent+"33":isToday?th.accent+"18":d?th.card:"transparent",border:d?`1.5px solid ${isSel?th.accent:isToday?th.accent+"88":th.border}`:"none",borderRadius:7,padding:"3px 2px",cursor:d?"pointer":"default"}}>
                   {d&&<>
                     <div style={{color:isSel?th.accent:isToday?th.accent:th.sub,fontSize:10,fontWeight:isToday||isSel?700:400,textAlign:"center",marginBottom:2}}>{d}</div>
@@ -864,7 +864,7 @@ function App(){
 
         {/* ══════════════ PERSONEN ══════════════ */}
         {tab==="personen"&&<>
-          <PageHeader label="Personen" title="Contacten"/>
+          {PageHeader({label:"Personen",title:"Contacten"})}
           {/* Zoekbalk personen */}
           <div style={{position:"relative",marginBottom:12}}>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:th.sub,fontSize:13}}>🔍</span>
@@ -908,7 +908,7 @@ function App(){
 
         {/* ══════════════ VERKENNER ══════════════ */}
         {tab==="verkenner"&&<>
-          <PageHeader label="Verkenner" title="Bestanden"/>
+          {PageHeader({label:"Verkenner",title:"Bestanden"})}
 
           {/* ══ LIVE APP-DATA PANEEL ══ */}
           {(()=>{
@@ -1067,7 +1067,7 @@ function App(){
 
         {/* ══════════════ SJABLONEN ══════════════ */}
         {tab==="sjablonen"&&<>
-          <PageHeader label="Sjablonen" title="Standaard taken"/>
+          {PageHeader({label:"Sjablonen",title:"Standaard taken"})}
           <div style={{color:th.sub,fontSize:12,marginBottom:10}}>Klik op een sjabloon om het direct toe te voegen voor vandaag.</div>
           <div style={{position:"relative",marginBottom:12}}>
             <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:th.sub,fontSize:13}}>🔍</span>
@@ -1103,7 +1103,7 @@ function App(){
 
         {/* ══════════════ INSTELLINGEN ══════════════ */}
         {tab==="instellingen"&&<>
-          <PageHeader label="Instellingen" title="Instellingen"/>
+          {PageHeader({label:"Instellingen",title:"Instellingen"})}
           <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
             <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>🎨 Thema</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
@@ -1158,7 +1158,7 @@ function App(){
 
         {/* ══════════════ HELP ══════════════ */}
         {tab==="help"&&<>
-          <PageHeader label="Help" title="Uitleg"/>
+          {PageHeader({label:"Help",title:"Uitleg"})}
           {[
             {t:"🏠 Startpagina",b:"De startpagina toont een weerbericht, je afspraken van vandaag, een taakoverzicht, recente bestanden en je favoriete contacten. Markeer contacten als ⭐ favoriet bij Personen om ze hier te zien."},
             {t:"✅ Taken",b:"Voeg taken toe met dag, deadline, begin- en eindtijd. Kies prioriteit (Laag t/m Urgent). Urgente taken pulseren rood. Vink je een hoge of urgente taak af? Confetti! Je kunt ook een link (bijv. YouTube) toevoegen en aangeven met wie je de afspraak hebt."},
