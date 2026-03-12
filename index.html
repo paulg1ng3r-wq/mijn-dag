@@ -26,7 +26,7 @@ textarea{resize:vertical;font-family:inherit;}
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useRef,useMemo,useEffect} = React;
-const VERSION = "v1.10.2";
+const VERSION = "v1.10.3";
 
 const CHANGELOG = [
   {version:"v1.10.2",date:"maart 2026",items:[
@@ -196,9 +196,10 @@ function VNewInput({label,placeholder,onConfirm,onCancel,inp,th,darkAccent}){
 }
 
 /* ─── Folder view component with drag & drop ─── */
-function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,renaming,setFiles,setFolders,newFile,newFolder,deleteFolder,th,inp,darkAccent,breadcrumb,currentFolderFiles,currentSubFolders,vNewName,setVNewName,vNewMode,setVNewMode,vDragOver,setVDragOver,updateFile}){
+function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,renaming,setFiles,setFolders,newFile,newFolder,deleteFolder,th,inp,darkAccent,breadcrumb,currentFolderFiles,currentSubFolders,vNewName,setVNewName,vNewMode,setVNewMode,vDragOver,setVDragOver,updateFile,addPhoto}){
   const [dragId,setDragId]=React.useState(null);
   const [dragType,setDragType]=React.useState(null); // "file"|"folder"
+  const photoRef=React.useRef();
 
   const bc=breadcrumb();
   const subFolders=currentSubFolders();
@@ -283,7 +284,9 @@ function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,rena
           draggable onDragStart={e=>onDragStart(e,f.id,"file")} onDragEnd={onDragEnd}
           onClick={()=>{setVFile(f.id);setRenaming(null);}}
           style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:9,padding:"10px 13px",display:"flex",alignItems:"center",gap:10,marginBottom:6,cursor:"grab",opacity:dragId===f.id?0.4:1}}>
-          <span style={{fontSize:18}}>📄</span>
+          {f.photo
+            ? <img src={f.photo} style={{width:38,height:38,borderRadius:6,objectFit:"cover",flexShrink:0,filter:"grayscale(1)"}}/>
+            : <span style={{fontSize:18}}>📄</span>}
           {renaming&&renaming.id===f.id?(
             <div style={{flex:1,display:"flex",gap:7}} onClick={e=>e.stopPropagation()}>
               <VRenameInput currentName={f.name} onSave={v=>updateFile(f.id,{name:v})} onCancel={()=>setRenaming(null)} inp={inp} th={th} darkAccent={darkAccent}/>
@@ -291,7 +294,7 @@ function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,rena
           ):(
             <>
               <div style={{flex:1,color:th.text,fontSize:13}}>{f.name}</div>
-              <span style={{color:th.sub,fontSize:10}}>{f.content.length} tekens</span>
+              <span style={{color:th.sub,fontSize:10}}>{f.photo?"📷 foto":`${f.content.length} tekens`}</span>
               <button onClick={e=>{e.stopPropagation();setRenaming({id:f.id});}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>✏️</button>
               <button onClick={e=>{e.stopPropagation();setFiles(files.filter(x=>x.id!==f.id));}} style={{background:"none",border:"none",color:th.sub,fontSize:12,padding:2}}>🗑️</button>
             </>
@@ -312,8 +315,10 @@ function VFolderView({files,folders,vFolder,setVFolder,setVFile,setRenaming,rena
 
       {/* Action bar */}
       <div style={{display:"flex",gap:7,marginTop:10,flexWrap:"wrap"}}>
-        <button onClick={()=>setVNewMode("folder")} style={{flex:1,minWidth:110,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📁 Nieuwe map</button>
-        <button onClick={()=>setVNewMode("file")} style={{flex:1,minWidth:110,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📄 Nieuw bestand</button>
+        <button onClick={()=>setVNewMode("folder")} style={{flex:1,minWidth:80,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📁 Nieuwe map</button>
+        <button onClick={()=>setVNewMode("file")} style={{flex:1,minWidth:80,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📄 Nieuw bestand</button>
+        <button onClick={()=>photoRef.current.click()} style={{flex:1,minWidth:80,padding:9,background:th.card,border:`1px solid ${th.border}`,borderRadius:8,color:th.text,fontFamily:"inherit",fontSize:12}}>📷 Foto uploaden</button>
+        <input ref={photoRef} type="file" accept="image/*" multiple onChange={e=>{Array.from(e.target.files).forEach(f=>addPhoto(f));e.target.value="";}} style={{display:"none"}}/>
       </div>
 
       {/* Snelle sjablonen */}
@@ -684,12 +689,35 @@ function App(){
     setFolders([...folders,{id:Date.now(),name:name||"Nieuwe map",parentId:vFolder||null}]);
   }
   function deleteFolder(id){
-    // delete all files in folder and sub-folders recursively
     const toDelete=new Set([id]);
     let changed=true;
     while(changed){changed=false;folders.forEach(f=>{if(f.parentId&&toDelete.has(f.parentId)&&!toDelete.has(f.id)){toDelete.add(f.id);changed=true;}});}
     setFiles(files.filter(f=>!toDelete.has(f.folderId)));
     setFolders(folders.filter(f=>!toDelete.has(f.id)));
+  }
+
+  function addPhoto(file){
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=480;
+        const scale=Math.min(1,MAX/Math.max(img.width,img.height));
+        const w=Math.round(img.width*scale);
+        const h=Math.round(img.height*scale);
+        const canvas=document.createElement("canvas");
+        canvas.width=w;canvas.height=h;
+        const ctx=canvas.getContext("2d");
+        ctx.filter="grayscale(1)";
+        ctx.drawImage(img,0,0,w,h);
+        const dataUrl=canvas.toDataURL("image/jpeg",0.82);
+        const name=file.name.replace(/\.[^.]+$/,"")||"Foto";
+        setFiles(prev=>[...prev,{id:Date.now(),name,content:"",photo:dataUrl,folderId:vFolder||null}]);
+        showToast("📷 Foto opgeslagen!");
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   /* ────────────────────────────────── RENDER ────────────────────────────── */
@@ -1082,6 +1110,20 @@ function App(){
           {vFile!==null?(()=>{
             const f=files.find(x=>x.id===vFile);
             if(!f){setVFile(null);return null;}
+            if(f.photo) return(
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>{setVFile(null);setRenaming(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.accent,padding:"5px 11px",fontSize:12,fontFamily:"inherit",flexShrink:0}}>← Terug</button>
+                  <div style={{color:th.text,fontSize:14,fontWeight:600,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                  <a href={f.photo} download={f.name+".jpg"} style={{background:"none",border:"none",color:th.accent,fontSize:13,padding:3,textDecoration:"none",flexShrink:0}}>↓</a>
+                  <button onClick={()=>{setFiles(files.filter(x=>x.id!==vFile));setVFile(null);}} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3,flexShrink:0}}>🗑️</button>
+                </div>
+                <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,overflow:"hidden",textAlign:"center",padding:4}}>
+                  <img src={f.photo} style={{maxWidth:"100%",borderRadius:8,display:"block",filter:"grayscale(1)"}}/>
+                </div>
+                <div style={{color:th.muted,fontSize:10,textAlign:"center"}}>📷 480p · zwart-wit</div>
+              </div>
+            );
             return(
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
@@ -1109,7 +1151,7 @@ function App(){
               newFile={newFile} newFolder={newFolder} deleteFolder={deleteFolder}
               th={th} inp={inp} darkAccent={darkAccent}
               breadcrumb={breadcrumb} currentFolderFiles={currentFolderFiles} currentSubFolders={currentSubFolders}
-              vNewName={vNewName} setVNewName={setVNewName} vNewMode={vNewMode} setVNewMode={setVNewMode}
+              vNewName={vNewName} setVNewName={setVNewName} vNewMode={vNewMode} setVNewMode={setVNewMode} addPhoto={addPhoto}
               vDragOver={vDragOver} setVDragOver={setVDragOver}
               updateFile={updateFile}
             />
