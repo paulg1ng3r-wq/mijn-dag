@@ -294,7 +294,7 @@ function App(){
   const [folders,  setFolders]  = useLs("vfolders",[]);
   const [weatherCity,setWeatherCity] = useLs("weatherCity","Rotterdam");
 
-  const [tab,      setTab]      = useState("taken");
+  const [tab,      setTab]      = useState("home");
   const [filter,   setFilter]   = useState("Alles");
   const [showForm, setShowForm] = useState(false);
   const [editId,   setEditId]   = useState(null);
@@ -307,7 +307,7 @@ function App(){
   const [tplForm,  setTplForm]  = useState({text:"",priority:"Normaal",color:"#4a90d9",emoji:"⭐"});
   const [showTplF, setShowTplF] = useState(false);
   const [editPer,  setEditPer]  = useState(null);
-  const [perForm,  setPerForm]  = useState({name:"",phone:"",email:"",place:"",emoji:"👤"});
+  const [perForm,  setPerForm]  = useState({name:"",phone:"",email:"",place:"",emoji:"👤",fav:false});
   const [showPerF, setShowPerF] = useState(false);
   // Verkenner state
   const [vFolder,  setVFolder]  = useState(null);   // current folder id (null=root)
@@ -659,6 +659,113 @@ function App(){
 
       <div style={{width:"100%",maxWidth:560,flex:1,padding:"26px 13px 100px"}}>
 
+        {/* ══════════════ HOME ══════════════ */}
+        {tab==="home"&&<>
+          <div style={{marginBottom:18}}>
+            <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:4}}>
+              <span style={{color:th.accent,fontSize:10,letterSpacing:4,textTransform:"uppercase"}}>Dashboard</span>
+              <span style={{color:th.muted,fontSize:10}}>{VERSION}</span>
+            </div>
+            <h1 style={{color:th.text,fontSize:30,fontWeight:600,letterSpacing:-0.5}}>Goedemorgen 👋</h1>
+            <div style={{height:1,background:`linear-gradient(90deg,${th.accent}55,transparent)`,marginTop:10}}/>
+          </div>
+
+          {/* Weer widget */}
+          <div style={{background:`linear-gradient(135deg,${th.accent}22,${th.card})`,border:`1px solid ${th.accent}44`,borderRadius:14,padding:"14px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:14}}>
+            {weatherLoad?<div style={{color:th.sub,fontSize:12}}>Weer laden…</div>:
+             weather?.error?<div style={{color:th.sub,fontSize:12}}>⚠️ {weather.error}</div>:(
+              <>
+                <div style={{fontSize:42,lineHeight:1}}>{weather?.icon||"🌤"}</div>
+                <div style={{flex:1}}>
+                  <div style={{color:th.text,fontSize:22,fontWeight:700}}>{weather?.temp??"-"}°C</div>
+                  <div style={{color:th.sub,fontSize:12}}>{weather?.desc} · {weather?.name}</div>
+                  <div style={{color:th.sub,fontSize:11}}>💨 {weather?.wind??"-"} km/u</div>
+                </div>
+                <button onClick={()=>fetchWeather(weatherCity)} style={{background:"none",border:"none",color:th.accent,fontSize:16,padding:4}}>↻</button>
+              </>
+            )}
+          </div>
+
+          {/* Afspraken vandaag */}
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+            <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>📅 Afspraken vandaag</div>
+            {(()=>{
+              const vandaag=tasks.filter(t=>t.day===TODAY&&!t.done).sort((a,b)=>(a.time||"").localeCompare(b.time||""));
+              if(vandaag.length===0)return<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"8px 0"}}>Geen afspraken vandaag</div>;
+              return vandaag.map(t=>{
+                const dot=t.color||PRIO_COLORS[t.priority];
+                return<div key={t.id} style={{display:"flex",alignItems:"center",gap:9,marginBottom:7,padding:"7px 10px",background:th.bg,borderRadius:9,borderLeft:`3px solid ${dot}`}}>
+                  <div style={{flex:1}}>
+                    <div style={{color:th.text,fontSize:13,fontWeight:500}}>{t.text}</div>
+                    {t.time&&<div style={{color:th.sub,fontSize:11}}>{t.time}{t.endTime?"–"+t.endTime:""}</div>}
+                  </div>
+                  <span style={{background:dot+"22",color:dot,borderRadius:20,padding:"1px 7px",fontSize:9,fontWeight:600}}>{t.priority}</span>
+                </div>;
+              });
+            })()}
+          </div>
+
+          {/* Open taken samenvatting */}
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase"}}>✅ Taken</div>
+              <button onClick={()=>setTab("taken")} style={{background:"none",border:"none",color:th.accent,fontSize:11,fontFamily:"inherit"}}>Alles zien →</button>
+            </div>
+            <div style={{display:"flex",gap:10,marginBottom:10}}>
+              {[["Open",tasks.filter(t=>!t.done).length,th.accent],["Gedaan",tasks.filter(t=>t.done).length,"#66bb6a"],["Urgent",tasks.filter(t=>t.priority==="Urgent"&&!t.done).length,"#b71c1c"]].map(([l,v,col])=>(
+                <div key={l} style={{flex:1,background:th.bg,borderRadius:9,padding:"8px 10px",textAlign:"center"}}>
+                  <div style={{color:col,fontSize:20,fontWeight:700}}>{v}</div>
+                  <div style={{color:th.sub,fontSize:9,letterSpacing:1}}>{l.toUpperCase()}</div>
+                </div>
+              ))}
+            </div>
+            {tasks.filter(t=>!t.done).slice(0,3).map(t=>(
+              <div key={t.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:t.color||PRIO_COLORS[t.priority],flexShrink:0}}/>
+                <div style={{color:th.text,fontSize:12,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.text}</div>
+                {t.deadline&&<DeadlineBadge deadline={t.deadline}/>}
+              </div>
+            ))}
+            {tasks.filter(t=>!t.done).length>3&&<div style={{color:th.sub,fontSize:11,marginTop:4}}>+{tasks.filter(t=>!t.done).length-3} meer</div>}
+          </div>
+
+          {/* Recente bestanden */}
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase"}}>📄 Recente bestanden</div>
+              <button onClick={()=>setTab("verkenner")} style={{background:"none",border:"none",color:th.accent,fontSize:11,fontFamily:"inherit"}}>Alles zien →</button>
+            </div>
+            {files.length===0?<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"6px 0"}}>Geen bestanden</div>:
+              [...files].slice(-4).reverse().map(f=>(
+                <div key={f.id} onClick={()=>{setVFile(f.id);setTab("verkenner");}} style={{display:"flex",alignItems:"center",gap:9,padding:"7px 0",borderBottom:`1px solid ${th.border}`,cursor:"pointer"}}>
+                  <span style={{fontSize:16}}>📄</span>
+                  <div style={{flex:1,color:th.text,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
+                  <span style={{color:th.sub,fontSize:10}}>{f.content.length} tekens</span>
+                </div>
+              ))
+            }
+          </div>
+
+          {/* Favoriete contacten */}
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase"}}>⭐ Favoriete contacten</div>
+              <button onClick={()=>setTab("personen")} style={{background:"none",border:"none",color:th.accent,fontSize:11,fontFamily:"inherit"}}>Alles zien →</button>
+            </div>
+            {(()=>{
+              const favs=persons.filter(p=>p.fav);
+              if(favs.length===0)return<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"6px 0"}}>Markeer contacten als favoriet (⭐) bij Personen</div>;
+              return<div style={{display:"flex",gap:10,flexWrap:"wrap"}}>{favs.map(p=>(
+                <div key={p.id} onClick={()=>setTab("personen")} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,padding:"10px 14px",background:th.bg,borderRadius:10,cursor:"pointer",minWidth:70}}>
+                  <div style={{fontSize:26}}>{p.emoji}</div>
+                  <div style={{color:th.text,fontSize:11,fontWeight:600,textAlign:"center",maxWidth:70,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.name}</div>
+                  {p.phone&&<div style={{color:th.accent,fontSize:9}}>📞</div>}
+                </div>
+              ))}</div>;
+            })()}
+          </div>
+        </>}
+
         {/* ══════════════ TAKEN ══════════════ */}
         {tab==="taken"&&<>
           <div style={{marginBottom:18}}>
@@ -775,8 +882,9 @@ function App(){
                   {p.email&&<div style={{color:th.sub,fontSize:11}}>✉️ {p.email}</div>}
                   {p.place&&<div style={{color:th.sub,fontSize:11}}>📍 {p.place}</div>}
                 </div>
-                <div style={{display:"flex",gap:3}}>
-                  <button onClick={()=>{setEditPer(p.id);setPerForm({name:p.name,phone:p.phone||"",email:p.email||"",place:p.place||"",emoji:p.emoji});setShowPerF(true);}} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
+                <div style={{display:"flex",gap:3,alignItems:"center"}}>
+                  <button onClick={()=>setPersons(persons.map(x=>x.id===p.id?{...x,fav:!p.fav}:x))} style={{background:"none",border:"none",color:p.fav?"#f5a623":th.sub,fontSize:16,padding:2}} title="Favoriet">{p.fav?"⭐":"☆"}</button>
+                  <button onClick={()=>{setEditPer(p.id);setPerForm({name:p.name,phone:p.phone||"",email:p.email||"",place:p.place||"",emoji:p.emoji,fav:p.fav||false});setShowPerF(true);}} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>✏️</button>
                   <button onClick={()=>setPersons(persons.filter(x=>x.id!==p.id))} style={{background:"none",border:"none",color:th.sub,fontSize:13,padding:3}}>🗑️</button>
                 </div>
               </div>
@@ -908,7 +1016,7 @@ function App(){
             );
           })()}
 
-          {/* Storage meter */}}
+          {/* Storage meter */}
           <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:"10px 14px",marginBottom:14}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{color:th.sub,fontSize:11}}>💾 Opslag gebruikt</span>
@@ -1007,6 +1115,14 @@ function App(){
             </div>
           </div>
           <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
+            <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>🌤 Weer</div>
+            <div style={{color:th.sub,fontSize:11,marginBottom:8}}>Stad voor het weer-widget op de startpagina</div>
+            <div style={{display:"flex",gap:7}}>
+              <input id="weerStad" defaultValue={weatherCity} style={{...inp,flex:1}} placeholder="Bijv. Rotterdam"/>
+              <button onClick={()=>{const v=document.getElementById("weerStad").value.trim();if(v)setWeatherCity(v);}} style={{padding:"10px 14px",background:th.accent,border:"none",borderRadius:8,color:darkAccent,fontFamily:"inherit",fontSize:13,fontWeight:600}}>OK</button>
+            </div>
+          </div>
+          <div style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:11,padding:13,marginBottom:11}}>
             <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase",marginBottom:9}}>☁️ Synchroniseren</div>
             <div style={{color:th.sub,fontSize:11,marginBottom:8,lineHeight:1.6}}>Maak een gratis account op <b>jsonbin.io</b>, maak een Bin aan en plak het Bin ID hieronder.</div>
             <input value={syncCode} onChange={e=>saveSyncCode(e.target.value)} placeholder="JSONBin Bin ID…" style={{...inp,marginBottom:8}}/>
@@ -1044,11 +1160,12 @@ function App(){
         {tab==="help"&&<>
           <PageHeader label="Help" title="Uitleg"/>
           {[
+            {t:"🏠 Startpagina",b:"De startpagina toont een weerbericht, je afspraken van vandaag, een taakoverzicht, recente bestanden en je favoriete contacten. Markeer contacten als ⭐ favoriet bij Personen om ze hier te zien."},
             {t:"✅ Taken",b:"Voeg taken toe met dag, deadline, begin- en eindtijd. Kies prioriteit (Laag t/m Urgent). Urgente taken pulseren rood. Vink je een hoge of urgente taak af? Confetti! Je kunt ook een link (bijv. YouTube) toevoegen en aangeven met wie je de afspraak hebt."},
             {t:"🔁 Herhaling",b:"Stel herhaling in per taak: dagelijks, wekelijks (kies welke dag), om de week, maandelijks (kies de datum) of jaarlijks. De taak staat elke keer automatisch klaar."},
             {t:"📅 Kalender",b:"Bekijk je taken per maand als gekleurde stippen. Klik op een dag om de taken van die dag te zien en af te vinken."},
             {t:"👥 Personen",b:"Sla contacten op met naam, telefoon, e-mail en woonplaats. Koppel mensen aan taken zodat je weet met wie je een afspraak hebt."},
-            {t:"📁 Verkenner",b:"Maak mappen en tekstbestanden aan. De kladblok-knop in Verkenner maakt snel een leeg bestand. Er zijn sjablonen voor locaties, wachtwoorden en boodschappenlijsten. Bovenaan zie je hoeveel opslagruimte je gebruikt."},
+            {t:"📁 Verkenner",b:"Maak mappen en tekstbestanden aan. De kladblok-knop in Verkenner maakt snel een leeg bestand. Er zijn sjablonen voor locaties, wachtwoorden en boodschappenlijsten. Bovenaan zie je hoeveel opslagruimte je gebruikt. Stel de stad in via Instellingen → Weer."},
             {t:"⚡ Sjablonen",b:"Maak vaste taken aan. Bij een nieuwe taak kun je met één klik een sjabloon kiezen — dan is de naam, kleur en prioriteit meteen ingevuld."},
             {t:"☁️ Synchroniseren",b:"Maak een gratis account op jsonbin.io. Maak een Bin aan en kopieer het Bin ID. Plak dit in Instellingen. Upload om op te slaan, Download om te laden op een ander apparaat."},
             {t:"💾 Export & Import",b:"Exporteer al je gegevens (taken, personen, bestanden, sjablonen) als JSON-bestand. Importeer dit later of op een ander apparaat."},
