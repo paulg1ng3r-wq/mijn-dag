@@ -26,18 +26,68 @@ textarea{resize:vertical;font-family:inherit;}
 <div id="root"></div>
 <script type="text/babel">
 const {useState,useRef,useMemo,useEffect} = React;
-const VERSION = "v1.10";
+const VERSION = "v1.10.2";
 
 const CHANGELOG = [
-  {version:"v1.10",items:["Startpagina met widgets: afspraken, taken, weer, bestanden, favoriete contacten","Live datum & tijd zichtbaar op elk tabblad","Zoekbalk bij Taken, Personen en Sjablonen","Stad voor weer instelbaar in Instellingen","Personen als favoriet markeren"]},
-  {version:"v1.09",items:["Live app-data bovenaan Verkenner"]},
-  {version:"v1.08",items:["Kladblok verplaatst naar Verkenner","Verkenner volledig herschreven en gerepareerd","5MB gebruiksmeter bovenaan Verkenner","Alle tabbladen direct zichtbaar (geen Meer-menu)","Tabs scrollbaar als ze niet passen"]},
-  {version:"v1.07",items:["Eindtijd afspraken","Herhaling (dagelijks/wekelijks/maandelijks/jaarlijks)","Synchroniseren via JSONBin","Link bij taken","Personen + koppelen","Help pagina","Urgentie-trigger + confetti","Verkenner met mappen en sjablonen"]},
-  {version:"v1.06",items:["Kalender klikbaar per dag","Filter deze week / volgende week"]},
-  {version:"v1.05",items:["Sjabloon snelkiezer in taakformulier"]},
-  {version:"v1.03",items:["Navigatiebalk, 6 thema's, kalender, sjablonen"]},
-  {version:"v1.02",items:["Tijdveld, Apple font, export/import"]},
-  {version:"v1.01",items:["Eerste versie"]},
+  {version:"v1.10.2",date:"maart 2026",items:[
+    {type:"bug",text:"Versiegeschiedenis toont nu duidelijk wat nieuw is (✨) en wat gerepareerd is (🐛)"},
+    {type:"bug",text:"Help-pagina uitklapbaar gemaakt per onderwerp — tik op een titel om de uitleg te lezen"},
+    {type:"bug",text:"Uitleg bij Help herschreven in eenvoudig Nederlands zodat iedereen het begrijpt"},
+    {type:"new",text:"Versienummering: v[platform].[versie].[bugfix] — bijv. v2 voor Android"},
+  ]},
+  {version:"v1.10.1",date:"maart 2026",items:[
+    {type:"bug",text:"Taken werden niet meer getoond na de vorige update — nu weer zichtbaar"},
+    {type:"bug",text:"Taakformulier sloot zichzelf bij elke letter die je typte — nu opgelost"},
+    {type:"bug",text:"Kalender-dagvenster sloot meteen na openen — nu blijft het open totdat je op ✕ tikt"},
+  ]},
+  {version:"v1.10",date:"maart 2026",items:[
+    {type:"new",text:"Startpagina met overzicht van je dag: taken van vandaag, aankomende afspraken en favoriete contacten"},
+    {type:"new",text:"Live klok bovenaan elk scherm — altijd de tijd in beeld"},
+    {type:"new",text:"Zoekbalk bij Taken, Personen en Sjablonen — snel iets terugvinden"},
+    {type:"new",text:"Drag & drop in Verkenner — bestanden slepen naar een andere map"},
+  ]},
+  {version:"v1.09",date:"2026",items:[
+    {type:"bug",text:"Verkenner opnieuw opgebouwd — mappen openen en bestanden aanmaken werkte niet"},
+    {type:"bug",text:"Lege pagina door een accolade te veel in de code — opgelost"},
+    {type:"bug",text:"React-fout #310 opgelost: een stukje code stond op de verkeerde plek"},
+  ]},
+  {version:"v1.08",date:"2026",items:[
+    {type:"new",text:"Kladblok verplaatst naar de Verkenner — alles op één plek"},
+    {type:"new",text:"Opslagmeter bovenaan de Verkenner — je ziet hoeveel ruimte je gebruikt"},
+    {type:"new",text:"Alle tabbladen direct zichtbaar — geen verborgen 'Meer'-menu meer"},
+    {type:"bug",text:"Tabs scrollbaar gemaakt zodat alles bereikbaar blijft op kleine schermen"},
+  ]},
+  {version:"v1.07",date:"2026",items:[
+    {type:"new",text:"Eindtijd toevoegen aan een taak — handig voor afspraken zoals 10:00–11:30"},
+    {type:"new",text:"Herhaling instellen: dagelijks, wekelijks, om de week, maandelijks of jaarlijks"},
+    {type:"new",text:"Synchroniseren via JSONBin.io — je gegevens beschikbaar op meerdere apparaten"},
+    {type:"new",text:"Link toevoegen aan een taak — bijv. een YouTube-video of website"},
+    {type:"new",text:"Personen opslaan en koppelen aan taken"},
+    {type:"new",text:"Help-pagina toegevoegd"},
+    {type:"new",text:"Urgente taken: knipperen rood, confetti bij afvinken"},
+    {type:"new",text:"Verkenner: mappen en tekstbestanden aanmaken met sjablonen"},
+  ]},
+  {version:"v1.06",date:"2026",items:[
+    {type:"new",text:"Klik op een dag in de kalender om de taken van die dag te zien"},
+    {type:"new",text:"Filteren op 'Deze week' en 'Volgende week'"},
+  ]},
+  {version:"v1.05",date:"2026",items:[
+    {type:"new",text:"Sjabloon-snelkiezer in het taakformulier — één klik en de taak is ingevuld"},
+  ]},
+  {version:"v1.03",date:"2026",items:[
+    {type:"new",text:"Navigatiebalk onderaan met tabbladen"},
+    {type:"new",text:"6 kleurthema's: Donker, Licht, Oranje, Mint, Blauw en Roze"},
+    {type:"new",text:"Kalenderweergave met gekleurde stippen per dag"},
+    {type:"new",text:"Sjablonen-tabblad voor vaste taken"},
+  ]},
+  {version:"v1.02",date:"2026",items:[
+    {type:"new",text:"Tijdveld toegevoegd per taak"},
+    {type:"new",text:"Apple SF Pro lettertype"},
+    {type:"new",text:"Exporteren en importeren als JSON-bestand"},
+  ]},
+  {version:"v1.01",date:"2026",items:[
+    {type:"new",text:"Eerste versie: taken toevoegen, prioriteit kiezen, afvinken en verwijderen"},
+  ]},
 ];
 
 const THEMES = {
@@ -319,6 +369,7 @@ function App(){
   const [syncCode, setSyncCodeR]= useState(()=>lv("syncCode",""));
   const [syncSt,   setSyncSt]   = useState("");
   const [openLive, setOpenLive] = useState(null);
+  const [openHelp, setOpenHelp] = useState(null);
   const [taakZoek,  setTaakZoek]  = useState("");
   const [perZoek,   setPerZoek]   = useState("");
   const [tplZoek,   setTplZoek]   = useState("");
@@ -799,7 +850,7 @@ function App(){
             {taakZoek&&<button onClick={()=>setTaakZoek("")} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:th.sub,fontSize:14,cursor:"pointer"}}>✕</button>}
           </div>
           {filtered.length===0&&<div style={{color:th.muted,textAlign:"center",padding:"30px 0",fontSize:13}}>Geen taken gevonden</div>}
-          {filtered.map(task=>{TaskCard({task})})}
+          {filtered.map(task=>TaskCard({task}))}
           {!showForm&&<button onClick={()=>{setShowForm(true);setEditId(null);setForm(EMPTY_FORM);}} style={{width:"100%",padding:12,background:"transparent",border:`2px dashed ${th.border}`,borderRadius:10,color:th.accent,fontSize:13,fontFamily:"inherit",marginTop:2}}>+ Nieuwe taak</button>}
           {showForm&&TaskForm()}
           <div style={{marginTop:20,display:"flex",justifyContent:"center",gap:16}}>
@@ -827,7 +878,7 @@ function App(){
                   <button onClick={e=>{e.stopPropagation();setSelDay(null);}} style={{background:th.badge,border:`1px solid ${th.border}`,borderRadius:7,color:th.sub,padding:"3px 8px",fontSize:11,fontFamily:"inherit"}}>✕</button>
                 </div>
                 {selTasks.length===0?<div style={{color:th.muted,fontSize:12,textAlign:"center",padding:"6px 0"}}>Geen taken</div>
-                  :selTasks.map(t=>{TaskCard({task:t,compact:true})})}
+                  :selTasks.map(t=>TaskCard({task:t,compact:true}))}
               </div>
             );
           })()}
@@ -1145,11 +1196,21 @@ function App(){
               <div style={{color:th.accent,fontSize:9,letterSpacing:2,textTransform:"uppercase"}}>📋 Versiegeschiedenis</div>
               <div style={{color:th.sub,fontSize:14,transform:showLog?"rotate(180deg)":"none",transition:"transform .2s"}}>▾</div>
             </button>
-            {showLog&&<div style={{marginTop:11,display:"flex",flexDirection:"column",gap:11}}>
+            {showLog&&<div style={{marginTop:11,display:"flex",flexDirection:"column",gap:13}}>
               {CHANGELOG.map(entry=>(
                 <div key={entry.version}>
-                  <div style={{color:th.accent,fontSize:11,fontWeight:700,marginBottom:4}}>{entry.version}</div>
-                  {entry.items.map((item,i)=><div key={i} style={{display:"flex",gap:6,marginBottom:2}}><span style={{color:th.accent,fontSize:9}}>·</span><span style={{color:th.sub,fontSize:11,lineHeight:1.5}}>{item}</span></div>)}
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:6}}>
+                    <div style={{color:th.accent,fontSize:12,fontWeight:700}}>{entry.version}</div>
+                    {entry.date&&<div style={{color:th.muted,fontSize:10}}>{entry.date}</div>}
+                  </div>
+                  {entry.items.map((item,i)=>(
+                    <div key={i} style={{display:"flex",gap:7,marginBottom:4,alignItems:"flex-start"}}>
+                      <span style={{flexShrink:0,fontSize:9,fontWeight:700,borderRadius:4,padding:"1px 5px",marginTop:1,background:item.type==="bug"?"#ef535022":"#66bb6a22",color:item.type==="bug"?"#ef5350":"#66bb6a"}}>
+                        {item.type==="bug"?"🐛 FIX":"✨ NIEUW"}
+                      </span>
+                      <span style={{color:th.sub,fontSize:11,lineHeight:1.5}}>{item.text}</span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>}
@@ -1159,22 +1220,103 @@ function App(){
         {/* ══════════════ HELP ══════════════ */}
         {tab==="help"&&<>
           {PageHeader({label:"Help",title:"Uitleg"})}
-          {[
-            {t:"🏠 Startpagina",b:"De startpagina toont een weerbericht, je afspraken van vandaag, een taakoverzicht, recente bestanden en je favoriete contacten. Markeer contacten als ⭐ favoriet bij Personen om ze hier te zien."},
-            {t:"✅ Taken",b:"Voeg taken toe met dag, deadline, begin- en eindtijd. Kies prioriteit (Laag t/m Urgent). Urgente taken pulseren rood. Vink je een hoge of urgente taak af? Confetti! Je kunt ook een link (bijv. YouTube) toevoegen en aangeven met wie je de afspraak hebt."},
-            {t:"🔁 Herhaling",b:"Stel herhaling in per taak: dagelijks, wekelijks (kies welke dag), om de week, maandelijks (kies de datum) of jaarlijks. De taak staat elke keer automatisch klaar."},
-            {t:"📅 Kalender",b:"Bekijk je taken per maand als gekleurde stippen. Klik op een dag om de taken van die dag te zien en af te vinken."},
-            {t:"👥 Personen",b:"Sla contacten op met naam, telefoon, e-mail en woonplaats. Koppel mensen aan taken zodat je weet met wie je een afspraak hebt."},
-            {t:"📁 Verkenner",b:"Maak mappen en tekstbestanden aan. De kladblok-knop in Verkenner maakt snel een leeg bestand. Er zijn sjablonen voor locaties, wachtwoorden en boodschappenlijsten. Bovenaan zie je hoeveel opslagruimte je gebruikt. Stel de stad in via Instellingen → Weer."},
-            {t:"⚡ Sjablonen",b:"Maak vaste taken aan. Bij een nieuwe taak kun je met één klik een sjabloon kiezen — dan is de naam, kleur en prioriteit meteen ingevuld."},
-            {t:"☁️ Synchroniseren",b:"Maak een gratis account op jsonbin.io. Maak een Bin aan en kopieer het Bin ID. Plak dit in Instellingen. Upload om op te slaan, Download om te laden op een ander apparaat."},
-            {t:"💾 Export & Import",b:"Exporteer al je gegevens (taken, personen, bestanden, sjablonen) als JSON-bestand. Importeer dit later of op een ander apparaat."},
-          ].map((s,i)=>(
-            <div key={i} style={{background:th.card,border:`1px solid ${th.border}`,borderRadius:10,padding:13,marginBottom:9}}>
-              <div style={{color:th.text,fontSize:13,fontWeight:600,marginBottom:4}}>{s.t}</div>
-              <div style={{color:th.sub,fontSize:11,lineHeight:1.7}}>{s.b}</div>
-            </div>
-          ))}
+          {(()=>{
+            const HELP_ITEMS = [
+              {t:"🏠 Startpagina",b:[
+                "De startpagina is het eerste scherm dat je ziet als je de app opent.",
+                "Bovenaan zie je de huidige tijd en datum.",
+                "Daaronder vind je een snel overzicht van je taken van vandaag — zodat je meteen weet wat je nog moet doen.",
+                "Je ziet ook je favoriete contacten. Je kunt iemand als favoriet instellen via het tabblad 👥 Personen.",
+                "Rechts bovenaan bij elk onderdeel staat een knop om naar het volledige scherm te gaan.",
+              ]},
+              {t:"✅ Taken — iets toevoegen aan je daglijst",b:[
+                "Taken zijn dingen die je wilt of moet doen, zoals 'boodschappen halen' of 'dokter bellen'.",
+                "Tik op de knop '+ Nieuwe taak' onderaan het scherm om een nieuwe taak aan te maken.",
+                "Je kunt een naam invullen, een dag kiezen waarop je het wilt doen, en een deadline instellen (de uiterste datum).",
+                "Je kunt ook een begintijd en eindtijd invullen, handig voor afspraken zoals 'tandarts 10:00 – 11:00'.",
+                "Bij prioriteit kies je hoe belangrijk de taak is: Laag, Normaal, Hoog of Urgent. Urgente taken kleuren rood en knipperen zodat je ze niet kunt missen.",
+                "Als je een Hoge of Urgente taak afvinkt, vliegt er confetti over je scherm — een kleine beloning! 🎉",
+                "Je kunt ook een link toevoegen, bijvoorbeeld naar een website of YouTube-video die bij de taak hoort.",
+                "Een taak afvinken doe je door op het ronde bolletje links van de taaknaam te tikken.",
+              ]},
+              {t:"🔁 Herhaling — terugkerende taken",b:[
+                "Sommige dingen doe je elke dag of elke week opnieuw, zoals medicijnen innemen of de vuilnis buitenzetten.",
+                "Bij het aanmaken van een taak kun je bij 'Herhaling' aangeven hoe vaak de taak terugkomt.",
+                "Kies uit: Geen, Dagelijks, Wekelijks, Om de week, Maandelijks of Jaarlijks.",
+                "Bij 'Wekelijks' kun je ook kiezen op welke dag van de week (bijv. elke maandag).",
+                "Bij 'Maandelijks' kies je op welke datum van de maand (bijv. elke 1e van de maand).",
+                "De taak verschijnt dan automatisch op de juiste dagen in je lijst.",
+              ]},
+              {t:"📅 Kalender — alles op een rijtje per dag",b:[
+                "De kalender laat een heel maand zien, net als een gewone kalender aan de muur.",
+                "Op dagen waarop je taken hebt, zie je kleine gekleurde bolletjes. De kleur geeft de prioriteit aan.",
+                "Tik op een dag om te zien welke taken er op die dag staan.",
+                "Er verschijnt dan een venster met de taken van die dag. Tik op het kruisje ✕ rechtsboven om dit venster weer te sluiten.",
+                "Met de pijltjes ‹ en › kun je naar de vorige of volgende maand bladeren.",
+              ]},
+              {t:"👥 Personen — contacten bewaren",b:[
+                "Bij Personen kun je mensen opslaan die belangrijk voor je zijn, zoals familieleden of de huisarts.",
+                "Tik op '+ Persoon toevoegen' om iemand toe te voegen. Je kunt een naam, telefoonnummer, e-mailadres en woonplaats invullen.",
+                "Je kunt ook een emoji kiezen die bij de persoon past, zoals 👨‍⚕️ voor de dokter of 👵 voor oma.",
+                "Als je een taak aanmaakt, kun je bij 'Met wie' aangeven wie erbij is. Zo zie je direct op de taak met wie de afspraak is.",
+                "Markeer iemand als ⭐ favoriet om ze op de startpagina te zien.",
+              ]},
+              {t:"📁 Verkenner — bestanden en notities",b:[
+                "De Verkenner werkt een beetje zoals de map op je computer of telefoon.",
+                "Je kunt hier tekstbestanden aanmaken om notities in bij te houden, zoals een boodschappenlijstje of een wachtwoord.",
+                "Tik op '📄 Nieuw bestand' om een leeg bestand te maken. Geef het een naam en begin met typen.",
+                "Je kunt ook mappen aanmaken om je bestanden netjes te ordenen. Tik op '📁 Nieuwe map'.",
+                "Er zijn ook kant-en-klare sjablonen: een Kladblok (leeg), een Locatie-kaartje, een Wachtwoord-notitie en een Boodschappenlijst.",
+                "Bovenaan de Verkenner zie je een gekleurde balk die aangeeft hoeveel opslagruimte je al gebruikt. De app heeft 5 MB beschikbaar.",
+                "Je kunt een bestand ook downloaden als tekstbestand op je telefoon via de ↓ knop.",
+              ]},
+              {t:"⚡ Sjablonen — snel een vaste taak toevoegen",b:[
+                "Sjablonen zijn voorgemaakte taken die je steeds opnieuw kunt gebruiken.",
+                "Stel je hebt elke week 'Boodschappen doen' op je lijst — dan maak je daar een sjabloon van.",
+                "Ga naar het tabblad Sjablonen en tik op '+ Nieuw sjabloon'. Vul de naam in en kies een kleur en prioriteit.",
+                "Als je daarna een nieuwe taak aanmaakt, zie je bovenaan je sjablonen staan. Tik erop om de naam en instellingen automatisch in te vullen.",
+                "Je kunt ook direct vanuit het sjablonenlijst een taak toevoegen met de '+ Voeg toe' knop.",
+              ]},
+              {t:"☁️ Synchroniseren — op meerdere apparaten",b:[
+                "Normaal worden je taken alleen opgeslagen op het apparaat waarmee je de app gebruikt.",
+                "Wil je je taken ook op een ander apparaat (bijv. je tablet of een ander telefoon) zien? Dan kun je synchroniseren.",
+                "Maak een gratis account aan op de website jsonbin.io (dit is een gratis opslagdienst op het internet).",
+                "Maak daar een zogenaamde 'Bin' aan — dat is een plekje op het internet waar je gegevens worden bewaard.",
+                "Kopieer het Bin ID (een reeks letters en cijfers) en plak dit in de app bij Instellingen → Synchroniseren.",
+                "Tik op '↑ Upload' om je gegevens op te slaan. Tik op '↓ Download' op een ander apparaat om ze op te halen.",
+              ]},
+              {t:"💾 Export & Import — een reservekopie maken",b:[
+                "Met Export kun je al je gegevens opslaan als een bestand op je telefoon. Dit is een soort reservekopie.",
+                "Ga naar Instellingen en tik op '↑ Exporteer alles'. Er wordt een bestand opgeslagen op je telefoon.",
+                "Wil je die gegevens later terugzetten, of op een ander apparaat laden? Tik dan op '↓ Importeer' en kies het bestand.",
+                "Het is slim om af en toe een exportje te maken, zodat je nooit iets kwijtraakt.",
+              ]},
+              {t:"🎨 Thema — de kleur van de app aanpassen",b:[
+                "Je kunt de uitstraling van de app aanpassen naar jouw smaak.",
+                "Ga naar Instellingen en kijk bij 'Thema'.",
+                "Er zijn 6 thema's: Donker (donkergrijs), Licht (wit), Oranje, Mint (groen), Blauw en Roze.",
+                "Tik op een thema om het meteen toe te passen. De app past direct van kleur!",
+              ]},
+            ];
+            return HELP_ITEMS.map((s,i)=>(
+              <div key={i} style={{background:th.card,border:`1px solid ${openHelp===i?th.accent:th.border}`,borderRadius:11,marginBottom:8,overflow:"hidden"}}>
+                <button onClick={()=>setOpenHelp(openHelp===i?null:i)} style={{width:"100%",background:"none",border:"none",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"13px 14px",fontFamily:"inherit",cursor:"pointer",gap:10}}>
+                  <div style={{color:openHelp===i?th.accent:th.text,fontSize:13,fontWeight:600,textAlign:"left"}}>{s.t}</div>
+                  <div style={{color:th.sub,fontSize:14,flexShrink:0,transform:openHelp===i?"rotate(180deg)":"none",transition:"transform .2s"}}>▾</div>
+                </button>
+                {openHelp===i&&(
+                  <div style={{padding:"0 14px 14px",display:"flex",flexDirection:"column",gap:7}}>
+                    {s.b.map((regel,j)=>(
+                      <div key={j} style={{display:"flex",gap:9,alignItems:"flex-start"}}>
+                        <span style={{color:th.accent,fontSize:12,marginTop:1,flexShrink:0}}>·</span>
+                        <span style={{color:th.sub,fontSize:12,lineHeight:1.75}}>{regel}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ));
+          })()}
         </>}
 
       </div>
